@@ -49,9 +49,11 @@ type SettingsData = {
 type LeaveCalendarEvent = {
   id: string;
   title: string;
+  name?: string;
   date: string;
   type: string;
   description?: string | null;
+  region?: string | null;
 };
 
 type FormState = {
@@ -87,17 +89,22 @@ function HolidayCalendarManager() {
     refetch: refetchHolidays,
     error: holidaysError,
   } = useQuery({
-    queryKey: ['settings-calendar-events'],
+    queryKey: ['settings-calendar-events', calendarMonth.getFullYear()],
     queryFn: async () => {
-      const response = await httpClient.get<ApiResponse<LeaveCalendarEvent[] | { items: LeaveCalendarEvent[] }>>(
-        endpoints.leaveCalendar,
+      const response = await httpClient.get<ApiResponse<Array<Record<string, unknown>>>>(
+        endpoints.settingsHolidays,
+        { params: { year: calendarMonth.getFullYear() } },
       );
-      const payload = response.data.data;
-      if (Array.isArray(payload)) return payload;
-      if (payload && typeof payload === 'object' && 'items' in payload && Array.isArray(payload.items)) {
-        return payload.items;
-      }
-      return [];
+      const payload = response.data.data ?? [];
+      return payload.map((holiday) => ({
+        id: String(holiday.id),
+        title: String(holiday.name ?? holiday.title ?? ''),
+        name: String(holiday.name ?? holiday.title ?? ''),
+        date: String(holiday.date),
+        type: String(holiday.type ?? 'HOLIDAY'),
+        description: typeof holiday.description === 'string' ? holiday.description : null,
+        region: typeof holiday.region === 'string' ? holiday.region : null,
+      })) satisfies LeaveCalendarEvent[];
     },
     staleTime: 30_000,
   });
@@ -106,7 +113,12 @@ function HolidayCalendarManager() {
 
   const createHolidayMutation = useMutation({
     mutationFn: async (data: { title: string; date: string; type: string; description?: string | null }) => {
-      const response = await httpClient.post(endpoints.leaveCalendar, data);
+      const response = await httpClient.post(endpoints.settingsHolidays, {
+        name: data.title,
+        date: data.date,
+        type: data.type,
+        description: data.description,
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -115,6 +127,7 @@ function HolidayCalendarManager() {
       setHolidayForm({ title: '', date: '', type: 'HOLIDAY', description: '' });
       setEditingHoliday(null);
       void queryClient.invalidateQueries({ queryKey: ['settings-calendar-events'] });
+      void queryClient.invalidateQueries({ queryKey: ['leave-calendar'] });
       void refetchHolidays();
     },
     onError: (error: Error) => {
@@ -124,7 +137,12 @@ function HolidayCalendarManager() {
 
   const updateHolidayMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { title: string; date: string; type: string; description?: string | null } }) => {
-      const response = await httpClient.patch(`${endpoints.leaveCalendar}/${id}`, data);
+      const response = await httpClient.patch(`${endpoints.settingsHolidays}/${id}`, {
+        name: data.title,
+        date: data.date,
+        type: data.type,
+        description: data.description,
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -133,6 +151,7 @@ function HolidayCalendarManager() {
       setEditingHoliday(null);
       setHolidayForm({ title: '', date: '', type: 'HOLIDAY', description: '' });
       void queryClient.invalidateQueries({ queryKey: ['settings-calendar-events'] });
+      void queryClient.invalidateQueries({ queryKey: ['leave-calendar'] });
     },
     onError: (error: Error) => {
       toast.error(error.message ?? 'Failed to update holiday');
@@ -141,11 +160,12 @@ function HolidayCalendarManager() {
 
   const deleteHolidayMutation = useMutation({
     mutationFn: async (id: string) => {
-      await httpClient.delete(`${endpoints.leaveCalendar}/${id}`);
+      await httpClient.delete(`${endpoints.settingsHolidays}/${id}`);
     },
     onSuccess: () => {
       toast.success('Holiday deleted');
       void queryClient.invalidateQueries({ queryKey: ['settings-calendar-events'] });
+      void queryClient.invalidateQueries({ queryKey: ['leave-calendar'] });
       void refetchHolidays();
     },
     onError: (error: Error) => {

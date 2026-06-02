@@ -39,9 +39,9 @@ const EmployeesPage = lazy(() =>
     default: module.EmployeesPage,
   })),
 );
-const UserManagementPage = lazy(() =>
-  import("@/modules/user-management/UserManagementPage").then((module) => ({
-    default: module.UserManagementPage,
+const EmployeeProfilePage = lazy(() =>
+  import("@/modules/employees/EmployeeProfilePage").then((module) => ({
+    default: module.EmployeeProfilePage,
   })),
 );
 const AttendancePage = lazy(() =>
@@ -67,6 +67,21 @@ const InterviewsPage = lazy(() =>
 const OnboardingPage = lazy(() =>
   import("@/modules/onboarding/OnboardingPage").then((module) => ({
     default: module.OnboardingPage,
+  })),
+);
+const PreOnboardingPage = lazy(() =>
+  import("@/modules/pre-onboarding/PreOnboardingPage").then((module) => ({
+    default: module.PreOnboardingPage,
+  })),
+);
+const PreOnboardingPortalPage = lazy(() =>
+  import("@/modules/pre-onboarding/PreOnboardingPortalPage").then((module) => ({
+    default: module.PreOnboardingPortalPage,
+  })),
+);
+const TasksPage = lazy(() =>
+  import("@/modules/tasks/TasksPage").then((module) => ({
+    default: module.TasksPage,
   })),
 );
 const OfferLettersPage = lazy(() =>
@@ -126,6 +141,7 @@ function lazyElement(element: ReactNode) {
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/dashboard" replace /> },
   { path: "/login", element: <LoginPage /> },
+  { path: "/onboarding/:token", element: lazyElement(<PreOnboardingPortalPage />) },
   { path: "/forgot-password", element: lazyElement(<ForgotPasswordPage />) },
   { path: "/reset-password", element: lazyElement(<ResetPasswordPage />) },
   { path: "/session-expired", element: lazyElement(<SessionExpiredPage />) },
@@ -144,7 +160,6 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute
                 permissions={[
-                  permissions.employeeDirectoryRead,
                   permissions.employeeRead,
                   permissions.employeeWrite,
                   permissions.employeeUserManage,
@@ -154,17 +169,34 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/employees",
-                element: lazyElement(<UserManagementPage />),
-              },
-              {
-                path: "/employee-directory",
                 element: lazyElement(<EmployeesPage />),
               },
               {
+                path: "/employees/:id",
+                element: lazyElement(<EmployeeProfilePage />),
+              },
+              {
+                path: "/employee-directory",
+                element: <Navigate to="/employees" replace />,
+              },
+              {
                 path: "/user-management",
-                element: lazyElement(<UserManagementPage />),
+                element: <Navigate to="/employees" replace />,
               },
             ],
+          },
+          {
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.tasksReadSelf,
+                  permissions.tasksReadTeam,
+                  permissions.tasksReadDepartment,
+                  permissions.tasksReadAll,
+                ]}
+              />
+            ),
+            children: [{ path: "/tasks", element: lazyElement(<TasksPage />) }],
           },
           {
             path: "/people",
@@ -203,6 +235,22 @@ export const router = createBrowserRouter([
             ),
             children: [
               { path: "/interviews", element: lazyElement(<InterviewsPage />) },
+            ],
+          },
+          {
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.preOnboardingRead,
+                  permissions.preOnboardingVerify,
+                ]}
+              />
+            ),
+            children: [
+              {
+                path: "/pre-onboarding",
+                element: lazyElement(<PreOnboardingPage />),
+              },
             ],
           },
           {

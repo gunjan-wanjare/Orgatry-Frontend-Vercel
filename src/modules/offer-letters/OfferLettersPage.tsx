@@ -1,5 +1,13 @@
-import { ArrowLeft, Download, Eye, Loader2, RefreshCw, WandSparkles } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import {
+  ArrowLeft,
+  Download,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  WandSparkles,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -8,7 +16,14 @@ import { Badge } from '@/components/ui/badge';
 import { PageTransition } from '@/components/animations/PageTransition';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SectionCard } from '@/components/shared/SectionCard';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { endpoints } from '@/services/api/endpoints';
 import { resourceApi } from '@/services/api/resource.api';
 import { httpClient } from '@/services/api/http-client';
@@ -16,6 +31,14 @@ import type { ApiResponse } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/tables/DataTable';
 import { useResourceQuery } from '@/hooks/use-resource-query';
+import { getErrorMessage } from '@/lib/errors';
+import {
+  buildOfferDocument,
+  downloadHtmlAsPdf,
+  offerStatusBadgeVariant,
+  OFFER_STATUS_LABELS,
+  stripScriptsForPreview,
+} from './offer-letter.utils';
 
 type Template = {
   id: string;
@@ -25,143 +48,162 @@ type Template = {
   isDefault: boolean;
   htmlContent: string;
   cssContent?: string;
+  currentVersion?: number;
+};
+
+type Candidate = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+
+type JobPosting = {
+  id: string;
+  title: string;
+  department: string;
 };
 
 type OfferLetter = {
   id: string;
   templateId: string;
-  template: { id: string; name: string; key: string };
+  template: { id: string; name: string; key: string; currentVersion?: number };
+  templateVersion?: { id: string; version: number; name: string } | null;
+  candidate?: Candidate | null;
+  job?: JobPosting | null;
+  createdBy?: { id: string; firstName: string; lastName: string; email: string } | null;
   variables: Record<string, string>;
-  generatedUrl: string;
+  generatedUrl?: string | null;
   status: string;
   createdAt: string;
+  generatedAt?: string | null;
+  renderedHtml?: string | null;
 };
 
-type GenerateResult = {
-  id: string;
+type GenerateResult = OfferLetter & {
   generatedHtml: string;
-  generatedUrl: string;
 };
 
 type Step = 'form' | 'preview';
 
-function interpolate(html: string, vars: Record<string, string>): string {
-  let result = html;
-  for (const [k, v] of Object.entries(vars)) {
-    result = result.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g'), v ?? '');
-  }
-  return result;
-}
-
-function buildDoc(html: string, css: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:sans-serif}${css}</style></head><body>${html}</body></html>`;
-}
-
-async function downloadAsPdf(html: string, filename: string) {
-  const html2pdf = (await import('html2pdf.js')).default;
-  const parsed = new DOMParser().parseFromString(html, 'text/html');
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '794px';
-  container.style.background = '#ffffff';
-  container.style.color = '#111827';
-
-  const body = parsed.body.cloneNode(true) as HTMLElement;
-  container.appendChild(body);
-
-  for (const styleNode of Array.from(parsed.head.querySelectorAll('style'))) {
-    const style = document.createElement('style');
-    style.textContent = styleNode.textContent ?? '';
-    container.appendChild(style);
-  }
-
-  document.body.appendChild(container);
-  await html2pdf()
-    .set({
-      margin: 0,
-      filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    })
-    .from(container)
-    .save();
-  document.body.removeChild(container);
-}
-
 export function OfferLettersPage() {
   const queryClient = useQueryClient();
-
-  // Generate modal state
+  const [page, setPage] = useState(1);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [detailOffer, setDetailOffer] = useState<OfferLetter | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OfferLetter | null>(null);
   const [step, setStep] = useState<Step>('form');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [candidateId, setCandidateId] = useState('');
+  const [jobId, setJobId] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
   const [previewHtml, setPreviewHtml] = useState('');
-  const [generatedId, setGeneratedId] = useState<string | null>(null);
+  const [generatedOffer, setGeneratedOffer] = useState<GenerateResult | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [mobileTab, setMobileTab] = useState<'variables' | 'preview'>('variables');
 
-  // Offer letters list
-  const listQuery = useResourceQuery<OfferLetter>('offer-letters', endpoints.offerLetters, { page: 1, limit: 5 });
+  const listQuery = useResourceQuery<OfferLetter>('offer-letters', endpoints.offerLetters, {
+    page,
+    limit: 25,
+  });
   const offerLetters = listQuery.data?.items ?? [];
+  const totalPages = listQuery.data?.meta.totalPages ?? 1;
 
-  // Templates for dropdown
-  const { data: templatesData } = useQuery({
+  const templatesQuery = useQuery({
     queryKey: ['templates-list'],
-    queryFn: () => resourceApi.list<Template>(endpoints.templates, { page: 1, limit: 50 }),
+    queryFn: () => resourceApi.list<Template>(endpoints.templates, { page: 1, limit: 100 }),
+  });
+  const templates = templatesQuery.data?.items ?? [];
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+
+  const candidatesQuery = useQuery({
+    queryKey: ['offer-letter-candidates'],
+    queryFn: () => resourceApi.list<Candidate>(endpoints.recruitment.candidates, { page: 1, limit: 100 }),
     enabled: generateOpen,
   });
-  const templates = templatesData?.items ?? [];
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const jobsQuery = useQuery({
+    queryKey: ['offer-letter-jobs'],
+    queryFn: () => resourceApi.list<JobPosting>(endpoints.recruitment.jobs, { page: 1, limit: 100 }),
+    enabled: generateOpen,
+  });
 
-  // When template changes, reset values to its detected variables
   useEffect(() => {
     if (!selectedTemplate) return;
     setValues((prev) => {
       const next: Record<string, string> = {};
-      for (const v of selectedTemplate.variables) next[v] = prev[v] ?? '';
+      for (const variable of selectedTemplate.variables) {
+        next[variable] = prev[variable] ?? '';
+      }
       return next;
     });
   }, [selectedTemplateId, selectedTemplate]);
 
-  // Live preview in form step
   useEffect(() => {
     if (!selectedTemplate || step !== 'form') return;
-    const html = interpolate(selectedTemplate.htmlContent, values);
-    setPreviewHtml(buildDoc(html, selectedTemplate.cssContent ?? ''));
+    setPreviewHtml(stripScriptsForPreview(buildOfferDocument(selectedTemplate.htmlContent, selectedTemplate.cssContent ?? '', values)));
   }, [values, selectedTemplate, step]);
 
   const generateMutation = useMutation({
     mutationFn: () =>
-      httpClient.post<ApiResponse<GenerateResult>>('/offer-letters/generate', {
+      httpClient.post<ApiResponse<GenerateResult>>(endpoints.offerLetterGenerate, {
         templateId: selectedTemplateId,
+        candidateId,
+        jobId,
         variables: values,
       }),
     onSuccess: (res) => {
       const data = res.data.data;
-      setGeneratedId(data.id);
-      setPreviewHtml(data.generatedHtml);
+      setGeneratedOffer(data);
+      setPreviewHtml(stripScriptsForPreview(data.generatedHtml));
       setStep('preview');
       toast.success('Offer letter generated');
       void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
     },
-    onError: (e: Error) => toast.error(e.message ?? 'Generation failed'),
+    onError: (error) => toast.error(getErrorMessage(error)),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => httpClient.delete(endpoints.offerLetterDetail(id)),
+    onSuccess: () => {
+      toast.success('Offer letter deleted');
+      setDeleteTarget(null);
+      setDetailOffer(null);
+      void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      httpClient.patch(endpoints.offerLetterStatus(id), { status }),
+    onSuccess: (res) => {
+      toast.success('Status updated');
+      setDetailOffer(res.data.data as OfferLetter);
+      void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const allFilled = useMemo(
+    () => selectedTemplate?.variables.every((variable) => values[variable]?.trim()) ?? false,
+    [selectedTemplate, values],
+  );
 
   function openGenerate(cloneFrom?: OfferLetter) {
     setStep('form');
-    setGeneratedId(null);
+    setGeneratedOffer(null);
     setPreviewHtml('');
     setMobileTab('variables');
     if (cloneFrom) {
       setSelectedTemplateId(cloneFrom.templateId);
+      setCandidateId(cloneFrom.candidate?.id ?? '');
+      setJobId(cloneFrom.job?.id ?? '');
       setValues({ ...cloneFrom.variables });
     } else {
-      const def = templates.find((t) => t.isDefault);
-      setSelectedTemplateId(def?.id ?? '');
+      const defaultTemplate = templates.find((template) => template.isDefault);
+      setSelectedTemplateId(defaultTemplate?.id ?? '');
+      setCandidateId('');
+      setJobId('');
       setValues({});
     }
     setGenerateOpen(true);
@@ -170,66 +212,94 @@ export function OfferLettersPage() {
   function closeGenerate() {
     setGenerateOpen(false);
     setStep('form');
-    setGeneratedId(null);
+    setGeneratedOffer(null);
     setPreviewHtml('');
     setValues({});
     setSelectedTemplateId('');
+    setCandidateId('');
+    setJobId('');
   }
 
-  async function handleDownload() {
-    if (!selectedTemplate) return;
+  async function handleDownload(source?: { html?: string; id?: string; filename?: string }) {
     setDownloading(true);
     try {
-      const html = interpolate(selectedTemplate.htmlContent, values);
-      const full = buildDoc(html, selectedTemplate.cssContent ?? '');
-      await downloadAsPdf(full, `offer-letter-${generatedId ?? Date.now()}.pdf`);
+      let html = source?.html ?? previewHtml;
+      const offerId = source?.id ?? generatedOffer?.id;
+
+      if (offerId && !source?.html) {
+        const res = await httpClient.get<ApiResponse<{ html: string }>>(endpoints.offerLetterPreview(offerId));
+        html = res.data.data?.html ?? html;
+      }
+
+      if (!html) {
+        toast.error('No rendered content available for download');
+        return;
+      }
+
+      await downloadHtmlAsPdf(html, source?.filename ?? `offer-letter-${offerId ?? Date.now()}.pdf`);
       toast.success('PDF downloaded');
-    } catch {
-      toast.error('PDF generation failed');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
       setDownloading(false);
     }
   }
 
+  async function openDetail(offer: OfferLetter) {
+    try {
+      const res = await httpClient.get<ApiResponse<OfferLetter>>(endpoints.offerLetterDetail(offer.id));
+      setDetailOffer(res.data.data ?? offer);
+    } catch {
+      setDetailOffer(offer);
+    }
+  }
+
   const columns: ColumnDef<OfferLetter>[] = [
+    {
+      id: 'candidate',
+      header: 'Candidate',
+      cell: ({ row }) => (
+        <button type="button" className="text-left" onClick={() => void openDetail(row.original)}>
+          <span className="font-medium text-foreground text-sm">
+            {row.original.candidate
+              ? `${row.original.candidate.firstName} ${row.original.candidate.lastName}`
+              : '—'}
+          </span>
+          <p className="text-xs text-muted-foreground">{row.original.job?.title ?? 'No job linked'}</p>
+        </button>
+      ),
+    },
     {
       id: 'template',
       header: 'Template',
       cell: ({ row }) => (
-        <span className="font-medium text-foreground text-sm">{row.original.template?.name ?? '—'}</span>
+        <div className="text-sm">
+          <p className="font-medium text-foreground">{row.original.template?.name ?? '—'}</p>
+          {row.original.templateVersion ? (
+            <p className="text-xs text-muted-foreground">v{row.original.templateVersion.version}</p>
+          ) : null}
+        </div>
       ),
-    },
-    {
-      id: 'variables',
-      header: 'Variables',
-      cell: ({ row }) => {
-        const vars = row.original.variables ?? {};
-        const entries = Object.entries(vars).slice(0, 2);
-        return (
-          <div className="flex flex-col gap-0.5">
-            {entries.map(([k, v]) => (
-              <span key={k} className="text-xs text-muted-foreground">
-                <span className="font-mono text-cyan-400/70">{k}:</span> {String(v).slice(0, 24)}{String(v).length > 24 ? '…' : ''}
-              </span>
-            ))}
-            {Object.keys(vars).length > 2 && (
-              <span className="text-xs text-muted-foreground">+{Object.keys(vars).length - 2} more</span>
-            )}
-          </div>
-        );
-      },
     },
     {
       id: 'status',
       header: 'Status',
-      cell: ({ row }) => <Badge variant="violet">{row.original.status}</Badge>,
+      cell: ({ row }) => (
+        <Badge variant={offerStatusBadgeVariant(row.original.status)}>
+          {OFFER_STATUS_LABELS[row.original.status] ?? row.original.status}
+        </Badge>
+      ),
     },
     {
       id: 'created',
       header: 'Created',
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {new Date(row.original.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {new Date(row.original.createdAt).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })}
         </span>
       ),
     },
@@ -241,30 +311,22 @@ export function OfferLettersPage() {
           <Button size="sm" variant="ghost" title="Clone & edit" onClick={() => openGenerate(row.original)}>
             <RefreshCw className="size-3.5" />
           </Button>
+          <Button size="sm" variant="ghost" title="View details" onClick={() => void openDetail(row.original)}>
+            <Eye className="size-3.5" />
+          </Button>
           <Button
             size="sm"
             variant="ghost"
-            title="Preview"
-            onClick={() => {
-              const t = templates.find((t) => t.id === row.original.templateId);
-              if (!t) { toast.error('Template not found'); return; }
-              const html = interpolate(t.htmlContent, row.original.variables);
-              setPreviewHtml(buildDoc(html, t.cssContent ?? ''));
-              setGeneratedId(row.original.id);
-              setSelectedTemplateId(t.id);
-              setValues(row.original.variables);
-              setStep('preview');
-              setGenerateOpen(true);
-            }}
+            className="text-rose-400 hover:text-rose-300"
+            title="Delete"
+            onClick={() => setDeleteTarget(row.original)}
           >
-            <Eye className="size-3.5" />
+            <Trash2 className="size-3.5" />
           </Button>
         </div>
       ),
     },
   ];
-
-  const allFilled = selectedTemplate && selectedTemplate.variables.every((v) => values[v]?.trim());
 
   return (
     <PageTransition>
@@ -272,9 +334,9 @@ export function OfferLettersPage() {
         <PageHeader
           eyebrow="Document generation"
           title="Offer letters"
-          description="Generate offer letters from templates, fill variables, preview and download as PDF."
+          description="Generate offer letters from versioned templates, preview content, download PDFs, and track offer status."
           actions={
-            <Button onClick={() => openGenerate()}>
+            <Button onClick={() => openGenerate()} disabled={templatesQuery.isLoading}>
               <WandSparkles className="size-4" /> Generate offer
             </Button>
           }
@@ -282,7 +344,7 @@ export function OfferLettersPage() {
 
         <SectionCard
           title="Generated offer letters"
-          description="Last 5 generated offers. Clone any to reuse with minor edits."
+          description="Click a row to view details, download PDFs, update status, or delete draft/generated offers."
         >
           <DataTable
             data={offerLetters}
@@ -290,15 +352,17 @@ export function OfferLettersPage() {
             isLoading={listQuery.isLoading}
             emptyTitle="No offer letters yet"
             emptyDescription="Generated offer letters will appear here."
-            page={1}
-            totalPages={1}
-            total={offerLetters.length}
-            onPageChange={() => {}}
+            page={page}
+            totalPages={totalPages}
+            total={listQuery.data?.meta.total ?? offerLetters.length}
+            onPageChange={setPage}
           />
         </SectionCard>
 
-        {/* Generate / Preview Dialog */}
-        <Dialog open={generateOpen} onOpenChange={(o) => !generateMutation.isPending && !downloading && (o ? undefined : closeGenerate())}>
+        <Dialog
+          open={generateOpen}
+          onOpenChange={(open) => !generateMutation.isPending && !downloading && (open ? setGenerateOpen(true) : closeGenerate())}
+        >
           <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden flex flex-col p-0">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
               <div>
@@ -306,29 +370,38 @@ export function OfferLettersPage() {
                   {step === 'form' ? 'Generate offer letter' : 'Preview offer letter'}
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-0.5">
-                  {step === 'form' ? 'Select a template, fill in the variables and generate.' : 'Review the generated offer. Download as PDF or go back to edit.'}
+                  {step === 'form'
+                    ? 'Select candidate, job, template, and fill mandatory variables before generating.'
+                    : 'Review the generated offer and download as PDF.'}
                 </DialogDescription>
               </div>
-              {step === 'preview' && (
+              {step === 'preview' ? (
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setStep('form')}>
                     <ArrowLeft className="size-4" /> Back
                   </Button>
-                  <Button size="sm" onClick={handleDownload} disabled={downloading}>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleDownload({
+                      ...(generatedOffer?.id ? { id: generatedOffer.id } : {}),
+                      html: previewHtml,
+                    })}
+                    disabled={downloading}
+                  >
                     {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                     Download PDF
                   </Button>
                 </div>
-              )}
+              ) : null}
             </div>
 
-            {step === 'form' && (
+            {step === 'form' ? (
               <div className="flex flex-1 overflow-hidden min-h-0">
-                {/* Mobile tab switcher */}
                 <div className="absolute left-6 top-16 z-10 flex gap-1 rounded-lg border border-border bg-slate-950/80 p-1 md:hidden">
                   {(['variables', 'preview'] as const).map((tab) => (
                     <button
                       key={tab}
+                      type="button"
                       onClick={() => setMobileTab(tab)}
                       className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${mobileTab === tab ? 'bg-white/10 text-foreground' : 'text-muted-foreground'}`}
                     >
@@ -337,63 +410,95 @@ export function OfferLettersPage() {
                   ))}
                 </div>
 
-                {/* Variables pane */}
-                <div className={`flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-border p-6 md:w-80 lg:w-96 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex'}`}>
+                <div
+                  className={`flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-border p-6 md:w-96 lg:w-[420px] ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex'}`}
+                >
                   <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Template</span>
+                    <span className="font-medium text-foreground">Candidate *</span>
                     <select
-                      className="h-10 cursor-pointer rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
-                      value={selectedTemplateId}
-                      onChange={(e) => setSelectedTemplateId(e.target.value)}
+                      className="h-10 rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
+                      value={candidateId}
+                      onChange={(event) => setCandidateId(event.target.value)}
                     >
-                      <option value="">Select template…</option>
-                      {templates.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}{t.isDefault ? ' (default)' : ''}
+                      <option value="">Select candidate…</option>
+                      {(candidatesQuery.data?.items ?? []).map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.firstName} {candidate.lastName} ({candidate.email})
                         </option>
                       ))}
                     </select>
                   </label>
 
-                  {selectedTemplate && selectedTemplate.variables.length > 0 && (
-                    <div className="grid gap-3">
-                      <span className="text-sm font-medium text-foreground">Variables</span>
-                      {selectedTemplate.variables.map((v) => (
-                        <label key={v} className="grid gap-1 text-sm">
-                          <span className="font-mono text-[11px] text-cyan-300">{`{{${v}}}`}</span>
-                          <Input
-                            value={values[v] ?? ''}
-                            onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
-                            placeholder={`Enter ${v.replace(/_/g, ' ')}…`}
-                          />
-                        </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Job *</span>
+                    <select
+                      className="h-10 rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
+                      value={jobId}
+                      onChange={(event) => setJobId(event.target.value)}
+                    >
+                      <option value="">Select job…</option>
+                      {(jobsQuery.data?.items ?? []).map((job) => (
+                        <option key={job.id} value={job.id}>
+                          {job.title} — {job.department}
+                        </option>
                       ))}
-                    </div>
-                  )}
+                    </select>
+                  </label>
 
-                  {selectedTemplate && selectedTemplate.variables.length === 0 && (
-                    <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border p-3">
-                      This template has no variables. Click Generate to proceed.
-                    </p>
-                  )}
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Template *</span>
+                    <select
+                      className="h-10 rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
+                      value={selectedTemplateId}
+                      onChange={(event) => setSelectedTemplateId(event.target.value)}
+                    >
+                      <option value="">Select template…</option>
+                      {templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                          {template.isDefault ? ' (default)' : ''}
+                          {template.currentVersion ? ` v${template.currentVersion}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {selectedTemplate?.variables.map((variable) => (
+                    <label key={variable} className="grid gap-1 text-sm">
+                      <span className="font-mono text-[11px] text-cyan-300">{`{{${variable}}}`}</span>
+                      <Input
+                        value={values[variable] ?? ''}
+                        onChange={(event) => setValues((prev) => ({ ...prev, [variable]: event.target.value }))}
+                        placeholder={`Enter ${variable.replace(/_/g, ' ')}…`}
+                      />
+                    </label>
+                  ))}
 
                   <div className="mt-auto pt-2">
                     <Button
                       className="w-full"
                       onClick={() => generateMutation.mutate()}
-                      disabled={generateMutation.isPending || !selectedTemplateId}
+                      disabled={
+                        generateMutation.isPending ||
+                        !selectedTemplateId ||
+                        !candidateId ||
+                        !jobId ||
+                        !allFilled
+                      }
                     >
-                      {generateMutation.isPending
-                        ? <><Loader2 className="size-4 animate-spin" /> Generating…</>
-                        : <><WandSparkles className="size-4" /> Generate</>}
+                      {generateMutation.isPending ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" /> Generating…
+                        </>
+                      ) : (
+                        <>
+                          <WandSparkles className="size-4" /> Generate
+                        </>
+                      )}
                     </Button>
-                    {selectedTemplate && !allFilled && (
-                      <p className="mt-1.5 text-center text-xs text-amber-400/80">Fill all variables for best results</p>
-                    )}
                   </div>
                 </div>
 
-                {/* Preview pane */}
                 <div className={`flex flex-1 flex-col overflow-hidden p-4 ${mobileTab === 'variables' ? 'hidden md:flex' : 'flex'}`}>
                   <p className="mb-2 shrink-0 text-xs text-muted-foreground">Live preview</p>
                   {selectedTemplate ? (
@@ -413,9 +518,7 @@ export function OfferLettersPage() {
                   )}
                 </div>
               </div>
-            )}
-
-            {step === 'preview' && (
+            ) : (
               <div className="flex flex-1 overflow-hidden min-h-0 p-4">
                 <div className="flex-1 overflow-hidden rounded-xl border border-border bg-white">
                   <iframe
@@ -430,6 +533,95 @@ export function OfferLettersPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        <Dialog open={detailOffer !== null} onOpenChange={(open) => !open && setDetailOffer(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Offer letter details</DialogTitle>
+              <DialogDescription>Review offer metadata, preview content, and manage status.</DialogDescription>
+            </DialogHeader>
+            {detailOffer ? (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Candidate</p>
+                    <p className="text-sm font-medium">
+                      {detailOffer.candidate
+                        ? `${detailOffer.candidate.firstName} ${detailOffer.candidate.lastName}`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Position</p>
+                    <p className="text-sm font-medium">{detailOffer.job?.title ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Template</p>
+                    <p className="text-sm font-medium">
+                      {detailOffer.template?.name ?? '—'}
+                      {detailOffer.templateVersion ? ` (v${detailOffer.templateVersion.version})` : ''}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <Badge variant={offerStatusBadgeVariant(detailOffer.status)}>
+                      {OFFER_STATUS_LABELS[detailOffer.status] ?? detailOffer.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Created</p>
+                    <p className="text-sm">{new Date(detailOffer.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Generated</p>
+                    <p className="text-sm">
+                      {detailOffer.generatedAt ? new Date(detailOffer.generatedAt).toLocaleString() : '—'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleDownload({ id: detailOffer.id, filename: `offer-${detailOffer.id}.pdf` })}
+                    disabled={downloading}
+                  >
+                    {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                    Download PDF
+                  </Button>
+                  {['SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
+                    <Button
+                      key={status}
+                      variant="outline"
+                      size="sm"
+                      disabled={statusMutation.isPending || detailOffer.status === status}
+                      onClick={() => statusMutation.mutate({ id: detailOffer.id, status })}
+                    >
+                      Mark {OFFER_STATUS_LABELS[status]}
+                    </Button>
+                  ))}
+                  <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(detailOffer)}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        <ConfirmModal
+          open={deleteTarget !== null}
+          title="Delete Offer Letter?"
+          description="This action cannot be undone."
+          confirmLabel="Delete"
+          variant="danger"
+          isLoading={deleteMutation.isPending}
+          onConfirm={() => {
+            if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+          }}
+          onCancel={() => setDeleteTarget(null)}
+        />
       </div>
     </PageTransition>
   );
