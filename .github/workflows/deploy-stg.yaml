@@ -69,7 +69,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ap-south-2
 
-      
+
+      - name: Export Secret Values
+        run: |
+            echo "VITE_API_BASE_URL=$(grep '^VITE_API_BASE_URL=' .env | cut -d= -f2-)" >> $GITHUB_ENV
+            echo "VITE_APP_NAME=$(grep '^VITE_APP_NAME=' .env | cut -d= -f2-)" >> $GITHUB_ENV
+            
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -78,6 +83,8 @@ jobs:
           build-args: |
             APP_NAME=torgatry-frontend
             NODE_ENV=main
+            VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
+            VITE_APP_NAME=${{ env.VITE_APP_NAME }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
