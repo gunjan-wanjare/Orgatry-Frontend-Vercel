@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { addMonths, format, getDay, isSameDay, startOfMonth, subMonths } from "date-fns";
+import { useSearchParams } from "react-router-dom";
 import { CheckCircle, ChevronLeft, ChevronRight, Plus, RefreshCw, Send, XCircle } from "lucide-react";
-import { toast } from "sonner";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/shared/SectionCard";
@@ -14,34 +13,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { httpClient } from "@/services/api/http-client";
-import { endpoints } from "@/services/api/endpoints";
-import type { ApiResponse } from "@/types/api";
+import { Switch } from "@/components/ui/switch";
+import { permissions } from "@/constants/permissions";
+import { usePermissions } from "@/hooks/use-permissions";
+import {
+  type CalendarResponse,
+  type LeaveBalance,
+  type LeaveRequest,
+  useApplyLeaveMutation,
+  useCancelLeaveMutation,
+  useLeaveBalances,
+  useLeaveCalendar,
+  useLeaveRequests,
+  useLeaveTypes,
+  useReviewLeaveMutation,
+} from "./useLeaves";
 
-type LeaveType = { id: string; name: string; code: string; annualQuota: number; isPaid: boolean };
-type LeaveBalance = { id: string; leaveTypeId: string; allocated: number; used: number; leaveType: LeaveType };
-type LeaveRequest = {
-  id: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  reason: string | null;
-  status: string;
-  leaveType: LeaveType;
-  employee?: { employeeId: string; firstName: string; lastName: string; department: string; designation: string };
-  approvals?: Array<{
-    approver?: { firstName: string; lastName: string };
-    decision: string;
-    level: number;
-    remarks?: string | null;
-  }>;
-};
-type Holiday = { id: string; name: string; date: string; type: string; region?: string | null };
-type CalendarResponse = { holidays: Holiday[]; optionalHolidays: Holiday[]; weekends: string[]; leaves: LeaveRequest[]; month: number; year: number };
-type PaginatedResponse<T> = { items: T[]; meta: { total: number; page: number; limit: number; totalPages: number } };
-type AuthUser = { permissions?: string[]; roles?: string[] };
-
-const localDateString = (value: Date) => value.toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit" }).split("/").reverse().join("-");
+const localDateString = (value: Date) =>
+  value.toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit" }).split("/").reverse().join("-");
 const formatReadableDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
 const daysInMonth = (year: number, monthIndex: number) => new Date(year, monthIndex + 1, 0).getDate();
 
@@ -49,7 +38,7 @@ function LeaveBalanceCards({ balances }: { balances: LeaveBalance[] }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {balances.map((balance) => {
-        const remaining = Number(balance.allocated) - Number(balance.used);
+        const remaining = balance.remaining ?? Number(balance.allocated) - Number(balance.used);
         const percent = balance.allocated > 0 ? Math.max(0, Math.min(100, (remaining / Number(balance.allocated)) * 100)) : 0;
 
         return (
@@ -77,16 +66,18 @@ function LeaveBalanceCards({ balances }: { balances: LeaveBalance[] }) {
   );
 }
 
-function HolidayCalendar({
+function LeaveCalendarGrid({
   monthDate,
   calendar,
   onPrevMonth,
   onNextMonth,
+  showEmployeeNames = false,
 }: {
   monthDate: Date;
   calendar: CalendarResponse | undefined;
   onPrevMonth: () => void;
   onNextMonth: () => void;
+  showEmployeeNames?: boolean;
 }) {
   const year = monthDate.getFullYear();
   const monthIndex = monthDate.getMonth();
@@ -94,12 +85,15 @@ function HolidayCalendar({
   const totalDays = daysInMonth(year, monthIndex);
   const cells = Array.from({ length: 42 }, (_, index) => index - startDay + 1);
 
-  const isWeekend = (date: Date) => calendar?.weekends.includes(date.toISOString()) ?? false;
-  const holidayForDay = (date: Date) => {
-    const iso = date.toISOString();
-    return [...(calendar?.holidays ?? []), ...(calendar?.optionalHolidays ?? [])].find((holiday) => isSameDay(new Date(holiday.date), date) || holiday.date.startsWith(iso.slice(0, 10)));
-  };
-  const leaveForDay = (date: Date) => (calendar?.leaves ?? []).find((leave) => isSameDay(new Date(leave.startDate), date) || (new Date(leave.startDate) <= date && date <= new Date(leave.endDate)));
+  const isWeekend = (date: Date) => calendar?.weekends.some((day) => isSameDay(new Date(day), date)) ?? false;
+  const holidayForDay = (date: Date) =>
+    [...(calendar?.holidays ?? []), ...(calendar?.optionalHolidays ?? [])].find((holiday) => isSameDay(new Date(holiday.date), date));
+  const leavesForDay = (date: Date) =>
+    (calendar?.leaves ?? []).filter(
+      (leave) =>
+        isSameDay(new Date(leave.startDate), date) ||
+        (new Date(leave.startDate) <= date && date <= new Date(leave.endDate)),
+    );
 
   return (
     <div className="rounded-2xl border border-border bg-white/[0.02] p-4">
@@ -114,10 +108,10 @@ function HolidayCalendar({
           </Button>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline">Weekend</Badge>
-          <Badge className="bg-amber-500/10 text-amber-300">Holiday</Badge>
-          <Badge className="bg-orange-500/10 text-orange-300">Optional</Badge>
-          <Badge className="bg-blue-500/10 text-blue-300">Leave</Badge>
+          <Badge variant="outline" className="bg-slate-500/10 text-slate-300">Weekend</Badge>
+          <Badge className="bg-yellow-500/10 text-yellow-200">Holiday</Badge>
+          <Badge className="bg-orange-500/10 text-orange-300">Pending Leave</Badge>
+          <Badge className="bg-blue-500/10 text-blue-300">Approved Leave</Badge>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -132,21 +126,34 @@ function HolidayCalendar({
           const date = new Date(year, monthIndex, dayNumber);
           const weekend = isWeekend(date);
           const holiday = holidayForDay(date);
-          const leave = leaveForDay(date);
+          const dayLeaves = leavesForDay(date);
           const isToday = isSameDay(date, new Date());
 
           return (
             <div
               key={date.toISOString()}
-              className={`min-h-24 rounded-xl border p-2 text-left ${isToday ? "border-cyan-500/50" : "border-border/50"} ${weekend ? "bg-slate-500/10" : "bg-white/[0.015]"} ${holiday?.type === "OPTIONAL" ? "ring-1 ring-orange-500/30" : ""}`}
+              className={`min-h-24 rounded-xl border p-2 text-left ${isToday ? "border-cyan-500/50" : "border-border/50"} ${weekend ? "bg-slate-500/15" : "bg-white/[0.015]"} ${holiday?.type === "OPTIONAL" ? "ring-1 ring-yellow-500/30" : ""}`}
             >
               <div className="flex items-start justify-between">
                 <span className={`text-sm ${isToday ? "font-semibold text-cyan-300" : "text-foreground"}`}>{dayNumber}</span>
               </div>
               <div className="mt-2 space-y-1">
-                {holiday ? <div className={`rounded-md px-2 py-1 text-xs ${holiday.type === "OPTIONAL" ? "bg-orange-500/15 text-orange-300" : "bg-amber-500/15 text-amber-200"}`}>{holiday.name}</div> : null}
-                {leave ? <div className="rounded-md bg-blue-500/15 px-2 py-1 text-xs text-blue-200">{leave.leaveType.name}</div> : null}
-                {weekend && !holiday ? <div className="text-xs text-muted-foreground">Weekend</div> : null}
+                {holiday ? (
+                  <div className={`rounded-md px-2 py-1 text-xs ${holiday.type === "OPTIONAL" ? "bg-yellow-500/15 text-yellow-200" : "bg-yellow-500/20 text-yellow-100"}`}>
+                    {holiday.name}
+                  </div>
+                ) : null}
+                {dayLeaves.map((leave) => (
+                  <div
+                    key={leave.id}
+                    className={`rounded-md px-2 py-1 text-xs ${leave.status === "APPROVED" ? "bg-blue-500/15 text-blue-200" : "bg-orange-500/15 text-orange-200"}`}
+                  >
+                    {showEmployeeNames && leave.employee
+                      ? `${leave.employee.firstName} · ${leave.leaveType.name}`
+                      : leave.leaveType.name}
+                  </div>
+                ))}
+                {weekend && !holiday ? <div className="text-xs text-slate-400">Weekend</div> : null}
               </div>
             </div>
           );
@@ -157,7 +164,13 @@ function HolidayCalendar({
 }
 
 export function LeavesPage() {
-  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { can } = usePermissions();
+  const canApproveLeaves = can(permissions.leaveApprove);
+  const canApply = can(permissions.leaveWrite);
+
+  const initialTab = searchParams.get("tab") ?? (searchParams.get("status") === "pending" ? "approvals" : "my-leaves");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [applyOpen, setApplyOpen] = useState(false);
   const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
   const [selectedLeaveType, setSelectedLeaveType] = useState("");
@@ -165,72 +178,37 @@ export function LeavesPage() {
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [teamCalendarMonth, setTeamCalendarMonth] = useState(new Date());
+  const [teamOnly, setTeamOnly] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [decision, setDecision] = useState<"APPROVED" | "REJECTED">("APPROVED");
   const [remarks, setRemarks] = useState("");
   const [dateError, setDateError] = useState<string | null>(null);
   const [overlapWarning, setOverlapWarning] = useState<string | null>(null);
 
-  const { data: user } = useQuery({
-    queryKey: ["auth-me"],
-    queryFn: async () => {
-      const res = await httpClient.get<ApiResponse<AuthUser>>(endpoints.auth.me);
-      return res.data.data;
-    },
-  });
+  useEffect(() => {
+    if (searchParams.get("status") === "pending" && canApproveLeaves) {
+      setActiveTab("approvals");
+    }
+  }, [canApproveLeaves, searchParams]);
 
-  const { data: leaveTypes } = useQuery({
-    queryKey: ["leave-types"],
-    queryFn: async () => {
-      const res = await httpClient.get<ApiResponse<LeaveType[]>>(endpoints.leaveTypes);
-      return res.data.data ?? [];
-    },
-  });
+  const { data: leaveTypes } = useLeaveTypes();
+  const { data: balances } = useLeaveBalances();
+  const { data: requests, refetch: refetchRequests } = useLeaveRequests("mine");
+  const { data: pendingApprovals, isLoading: pendingLoading, refetch: refetchPending } = useLeaveRequests("pending");
+  const { data: calendar, isLoading: calendarLoading } = useLeaveCalendar(calendarMonth, false);
+  const { data: teamCalendar, isLoading: teamCalendarLoading } = useLeaveCalendar(teamCalendarMonth, teamOnly);
 
-  const { data: balances } = useQuery({
-    queryKey: ["leave-balances"],
-    queryFn: async () => {
-      const res = await httpClient.get<ApiResponse<LeaveBalance[]>>(endpoints.leaveBalance);
-      return res.data.data ?? [];
-    },
-  });
+  const applyMutation = useApplyLeaveMutation();
+  const reviewMutation = useReviewLeaveMutation();
+  const cancelMutation = useCancelLeaveMutation();
 
-  const { data: requests } = useQuery({
-    queryKey: ["leave-requests"],
-    queryFn: async () => {
-      const res = await httpClient.get<ApiResponse<PaginatedResponse<LeaveRequest>>>(endpoints.leaveRequests);
-      return res.data.data?.items ?? [];
-    },
-  });
-
-  const { data: pendingApprovals, isLoading: pendingLoading, refetch: refetchPending } = useQuery({
-    queryKey: ["leave-requests", "pending"],
-    enabled: Boolean(user?.permissions?.includes("leave.approve")),
-    queryFn: async () => {
-      const res = await httpClient.get<ApiResponse<PaginatedResponse<LeaveRequest>>>(`${endpoints.leaveRequests}?status=PENDING&page=1&limit=50`);
-      return res.data.data;
-    },
-    staleTime: 60000,
-  });
-
-  const calendarQueryKey = useMemo(() => ["leave-calendar", calendarMonth.getFullYear(), calendarMonth.getMonth()], [calendarMonth]);
-  const { data: calendar, isLoading: calendarLoading } = useQuery({
-    queryKey: calendarQueryKey,
-    queryFn: async () => {
-      const res = await httpClient.get<ApiResponse<CalendarResponse>>(
-        `${endpoints.leaveCalendarView}?year=${calendarMonth.getFullYear()}&month=${calendarMonth.getMonth() + 1}`,
-      );
-      return res.data.data;
-    },
-    staleTime: 60000,
-  });
-
-  const canApproveLeaves = Boolean(user?.permissions?.includes("leave.approve"));
-  const approveCount = pendingApprovals?.items?.length ?? 0;
+  const approveCount = pendingApprovals?.length ?? 0;
 
   const remainingForSelectedType = useMemo(() => {
     const balance = balances?.find((item) => item.leaveTypeId === selectedLeaveType);
-    return balance ? Number(balance.allocated) - Number(balance.used) : null;
+    if (!balance) return null;
+    return balance.remaining ?? Number(balance.allocated) - Number(balance.used);
   }, [balances, selectedLeaveType]);
 
   const selectedWorkingDays = useMemo(() => {
@@ -242,11 +220,11 @@ export function LeavesPage() {
     let total = 0;
     const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const holidaySet = new Set([...(calendar?.holidays ?? []), ...(calendar?.optionalHolidays ?? [])].map((holiday) => holiday.date.slice(0, 10)));
+    const weekendSet = new Set((calendar?.weekends ?? []).map((day) => day.slice(0, 10)));
 
     while (cursor <= end) {
       const dayKey = localDateString(cursor);
-      const blocked = holidaySet.has(dayKey) || (calendar?.weekends ?? []).some((day) => day.slice(0, 10) === dayKey);
-      if (!blocked && [1, 2, 3, 4, 5].includes(cursor.getDay())) {
+      if (!holidaySet.has(dayKey) && !weekendSet.has(dayKey)) {
         total += 1;
       }
       cursor.setDate(cursor.getDate() + 1);
@@ -259,53 +237,6 @@ export function LeavesPage() {
     () => (requests ?? []).filter((request) => request.status !== "PENDING"),
     [requests],
   );
-
-  const applyMutation = useMutation({
-    mutationFn: async () => {
-      const res = await httpClient.post<ApiResponse<unknown>>(endpoints.leaveApply, {
-        leaveTypeId: selectedLeaveType,
-        startDate,
-        endDate,
-        reason,
-      });
-      return res.data.data;
-    },
-    onSuccess: () => {
-      toast.success("Leave request submitted");
-      setApplyOpen(false);
-      setSelectedLeaveType("");
-      setStartDate("");
-      setEndDate("");
-      setReason("");
-      setDateError(null);
-      setOverlapWarning(null);
-      void queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-      void queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
-      void queryClient.invalidateQueries({ queryKey: ["leave-calendar"] });
-    },
-    onError: (error: Error) => toast.error(error.message || "Failed to submit leave request"),
-  });
-
-  const reviewMutation = useMutation({
-    mutationFn: async (payload: { id: string; decision: "APPROVED" | "REJECTED"; remarks?: string | undefined }) => {
-      const res = await httpClient.patch<ApiResponse<LeaveRequest>>(`${endpoints.leaveRequests}/${payload.id}`, {
-        decision: payload.decision,
-        remarks: payload.remarks,
-      });
-      return res.data.data;
-    },
-    onSuccess: () => {
-      toast.success(decision === "APPROVED" ? "Leave request approved" : "Leave request rejected");
-      setDecisionDialogOpen(false);
-      setSelectedRequest(null);
-      setRemarks("");
-      void refetchPending();
-      void queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-      void queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
-      void queryClient.invalidateQueries({ queryKey: ["leave-calendar"] });
-    },
-    onError: (error: Error) => toast.error(error.message || "Failed to process request"),
-  });
 
   const validateSelectedDates = (nextStart: string, nextEnd: string) => {
     if (!nextStart || !nextEnd || !calendar) {
@@ -341,9 +272,7 @@ export function LeavesPage() {
     const overlapping = requests?.find((request) => {
       const requestStart = new Date(request.startDate);
       const requestEnd = new Date(request.endDate);
-      return request.status === "PENDING" || request.status === "APPROVED"
-        ? requestStart <= end && requestEnd >= start
-        : false;
+      return (request.status === "PENDING" || request.status === "APPROVED") && requestStart <= end && requestEnd >= start;
     });
 
     setDateError(null);
@@ -351,6 +280,12 @@ export function LeavesPage() {
   };
 
   const selectedDatesValid = !dateError && !overlapWarning && Boolean(selectedLeaveType && startDate && endDate);
+  const canCancelLeave = (request: LeaveRequest) => {
+    if (request.status !== "APPROVED") return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(request.startDate) >= today;
+  };
 
   const openDecisionDialog = (request: LeaveRequest, nextDecision: "APPROVED" | "REJECTED") => {
     setSelectedRequest(request);
@@ -361,17 +296,25 @@ export function LeavesPage() {
 
   const submitDecision = () => {
     if (!selectedRequest) return;
-
-    if (decision === "REJECTED" && !remarks.trim()) {
-      toast.error("Rejection reason is required");
-      return;
-    }
+    if (decision === "REJECTED" && !remarks.trim()) return;
 
     reviewMutation.mutate({
       id: selectedRequest.id,
       decision,
-      remarks: remarks.trim() || undefined,
+      ...(remarks.trim() ? { remarks: remarks.trim() } : {}),
+    }, {
+      onSuccess: () => {
+        setDecisionDialogOpen(false);
+        setSelectedRequest(null);
+        setRemarks("");
+        void refetchPending();
+      },
     });
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams(value === "approvals" ? { tab: "approvals", status: "pending" } : { tab: value });
   };
 
   return (
@@ -380,23 +323,28 @@ export function LeavesPage() {
         <PageHeader
           eyebrow="Leave Management"
           title="Leaves"
-          description="Apply for leave, review approvals, and browse the holiday calendar"
+          description="Apply for leave, review team approvals, and browse calendars with holidays and weekends"
           actions={
             <>
-              {canApproveLeaves && approveCount > 0 ? <Badge className="mr-2 bg-amber-500/10 text-amber-300">{approveCount} pending</Badge> : null}
-              <Button onClick={() => setApplyOpen(true)}>
-                <Plus className="mr-2 size-4" />
-                Apply Leave
-              </Button>
+              {canApproveLeaves && approveCount > 0 ? (
+                <Badge className="mr-2 bg-amber-500/10 text-amber-300">{approveCount} pending</Badge>
+              ) : null}
+              {canApply ? (
+                <Button onClick={() => setApplyOpen(true)}>
+                  <Plus className="mr-2 size-4" />
+                  Apply Leave
+                </Button>
+              ) : null}
             </>
           }
         />
 
-        <Tabs defaultValue="my-leaves">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
             <TabsTrigger value="my-leaves">My Leaves</TabsTrigger>
             {canApproveLeaves ? <TabsTrigger value="approvals">Approvals</TabsTrigger> : null}
-            <TabsTrigger value="calendar">Holiday Calendar</TabsTrigger>
+            <TabsTrigger value="calendar">My Calendar</TabsTrigger>
+            {canApproveLeaves ? <TabsTrigger value="team-calendar">Team Calendar</TabsTrigger> : null}
           </TabsList>
 
           <TabsContent value="my-leaves" className="space-y-6">
@@ -410,19 +358,31 @@ export function LeavesPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{request.leaveType.name}</span>
-                          <Badge variant={request.status === "APPROVED" ? "success" : request.status === "REJECTED" ? "destructive" : "warning"}>{request.status}</Badge>
+                          <Badge variant={request.status === "APPROVED" ? "success" : request.status === "REJECTED" ? "destructive" : request.status === "CANCELLED" ? "outline" : "warning"}>
+                            {request.status}
+                          </Badge>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {formatReadableDate(request.startDate)} - {formatReadableDate(request.endDate)} ({request.days} day{request.days === 1 ? "" : "s"})
                         </p>
                         {request.reason ? <p className="mt-1 text-sm">{request.reason}</p> : null}
                       </div>
-                      <div className="text-right text-xs text-muted-foreground">
+                      <div className="flex flex-col items-end gap-2 text-right text-xs text-muted-foreground">
                         {request.approvals?.map((approval) => (
                           <div key={approval.level}>
                             Level {approval.level}: {approval.decision}
                           </div>
                         ))}
+                        {canCancelLeave(request) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={cancelMutation.isPending}
+                            onClick={() => cancelMutation.mutate(request.id)}
+                          >
+                            Cancel Leave
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -461,9 +421,9 @@ export function LeavesPage() {
                           <div key={index} className="h-24 animate-pulse rounded-xl bg-white/[0.04]" />
                         ))}
                       </div>
-                    ) : pendingApprovals?.items?.length ? (
+                    ) : pendingApprovals?.length ? (
                       <div className="divide-y divide-border">
-                        {pendingApprovals.items.map((request) => (
+                        {pendingApprovals.map((request) => (
                           <div key={request.id} className="flex flex-wrap items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
                             <div className="flex-1">
                               <div className="flex flex-wrap items-center gap-2">
@@ -471,7 +431,7 @@ export function LeavesPage() {
                                 <span className="text-sm text-muted-foreground">({request.employee?.employeeId})</span>
                                 <Badge variant="outline">{request.employee?.department}</Badge>
                                 <Badge variant="secondary">{request.leaveType.name}</Badge>
-                                <Badge className="bg-amber-500/10 text-amber-300">PENDING</Badge>
+                                <Badge className="bg-orange-500/10 text-orange-300">PENDING</Badge>
                               </div>
                               <p className="mt-1 text-sm text-muted-foreground">
                                 {format(new Date(request.startDate), "PPP")} - {format(new Date(request.endDate), "PPP")} ({request.days} day{request.days === 1 ? "" : "s"})
@@ -500,7 +460,7 @@ export function LeavesPage() {
                 </TabsContent>
 
                 <TabsContent value="history">
-                  <SectionCard title="Approval History" description="Previously reviewed leave requests visible to your approval scope">
+                  <SectionCard title="Approval History" description="Previously reviewed leave requests">
                     {approvalHistory.length ? (
                       <div className="divide-y divide-border">
                         {approvalHistory.map((request) => (
@@ -515,14 +475,6 @@ export function LeavesPage() {
                               <p className="mt-1 text-sm text-muted-foreground">
                                 {format(new Date(request.startDate), "PPP")} - {format(new Date(request.endDate), "PPP")} ({request.days} day{request.days === 1 ? "" : "s"})
                               </p>
-                              {request.reason ? <p className="mt-1 text-sm">Reason: {request.reason}</p> : null}
-                            </div>
-                            <div className="text-right text-xs text-muted-foreground">
-                              {request.approvals?.map((approval) => (
-                                <div key={approval.level}>
-                                  Level {approval.level}: {approval.decision}
-                                </div>
-                              ))}
                             </div>
                           </div>
                         ))}
@@ -540,13 +492,9 @@ export function LeavesPage() {
 
           <TabsContent value="calendar">
             {calendarLoading ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                {Array.from({ length: 2 }, (_, index) => (
-                  <div key={index} className="h-96 animate-pulse rounded-2xl bg-white/[0.04]" />
-                ))}
-              </div>
+              <div className="h-96 animate-pulse rounded-2xl bg-white/[0.04]" />
             ) : (
-              <HolidayCalendar
+              <LeaveCalendarGrid
                 monthDate={calendarMonth}
                 calendar={calendar}
                 onPrevMonth={() => setCalendarMonth((value) => subMonths(value, 1))}
@@ -554,13 +502,33 @@ export function LeavesPage() {
               />
             )}
           </TabsContent>
+
+          {canApproveLeaves ? (
+            <TabsContent value="team-calendar" className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-white/[0.02] px-4 py-3">
+                <Switch checked={teamOnly} onCheckedChange={setTeamOnly} id="team-only" />
+                <Label htmlFor="team-only">My Team Only</Label>
+              </div>
+              {teamCalendarLoading ? (
+                <div className="h-96 animate-pulse rounded-2xl bg-white/[0.04]" />
+              ) : (
+                <LeaveCalendarGrid
+                  monthDate={teamCalendarMonth}
+                  calendar={teamCalendar}
+                  showEmployeeNames
+                  onPrevMonth={() => setTeamCalendarMonth((value) => subMonths(value, 1))}
+                  onNextMonth={() => setTeamCalendarMonth((value) => addMonths(value, 1))}
+                />
+              )}
+            </TabsContent>
+          ) : null}
         </Tabs>
 
         <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Apply for leave</DialogTitle>
-              <DialogDescription>Balance-aware validation runs before submission.</DialogDescription>
+              <DialogDescription>Balance-aware validation runs before submission. Same-day leave must be applied 1 hour before office start.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -573,7 +541,9 @@ export function LeavesPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {remainingForSelectedType !== null ? <p className="mt-1 text-xs text-muted-foreground">Remaining balance: {remainingForSelectedType.toFixed(1)} days</p> : null}
+                {remainingForSelectedType !== null ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Remaining balance: {remainingForSelectedType.toFixed(1)} days</p>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -613,7 +583,35 @@ export function LeavesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setApplyOpen(false)}>Cancel</Button>
-              <Button onClick={() => applyMutation.mutate()} disabled={!selectedDatesValid || applyMutation.isPending || Number.isFinite(remainingForSelectedType ?? NaN) && (remainingForSelectedType ?? 0) < selectedWorkingDays}>
+              <Button
+                onClick={() =>
+                  applyMutation.mutate(
+                    {
+                      leaveTypeId: selectedLeaveType,
+                      startDate,
+                      endDate,
+                      ...(reason.trim() ? { reason: reason.trim() } : {}),
+                    },
+                    {
+                      onSuccess: () => {
+                        setApplyOpen(false);
+                        setSelectedLeaveType("");
+                        setStartDate("");
+                        setEndDate("");
+                        setReason("");
+                        setDateError(null);
+                        setOverlapWarning(null);
+                        void refetchRequests();
+                      },
+                    },
+                  )
+                }
+                disabled={
+                  !selectedDatesValid ||
+                  applyMutation.isPending ||
+                  (remainingForSelectedType !== null && remainingForSelectedType < selectedWorkingDays)
+                }
+              >
                 {applyMutation.isPending ? "Submitting..." : "Submit Request"}
               </Button>
             </DialogFooter>

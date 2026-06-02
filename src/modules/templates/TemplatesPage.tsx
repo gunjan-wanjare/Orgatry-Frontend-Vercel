@@ -18,6 +18,14 @@ import { httpClient } from '@/services/api/http-client';
 import { useResourceQuery } from '@/hooks/use-resource-query';
 import type { ApiResponse } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
+import { getErrorMessage } from '@/lib/errors';
+import {
+  TEMPLATE_SAMPLE_DATA,
+  buildOfferDocument,
+  extractTemplateVariables,
+  stripScriptsForPreview,
+  validateTemplateContent,
+} from '@/modules/offer-letters/offer-letter.utils';
 
 type Template = {
   id: string;
@@ -28,6 +36,7 @@ type Template = {
   cssContent?: string;
   variables: string[];
   isDefault: boolean;
+  currentVersion?: number;
 };
 
 const EMPTY: Partial<Template> = {
@@ -38,11 +47,6 @@ const EMPTY: Partial<Template> = {
   cssContent: '',
 };
 
-function extractVariables(html: string): string[] {
-  const matches = [...html.matchAll(/\{\{\s*(\w+)\s*\}\}/g)];
-  return [...new Set(matches.map((m) => m[1]).filter((v): v is string => v !== undefined))];
-}
-
 const ForwardTextarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef<typeof Textarea>>(
   function ForwardTextarea(props, ref) {
     return <Textarea ref={ref} {...props} />;
@@ -50,11 +54,11 @@ const ForwardTextarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef
 );
 
 function buildPreview(html: string, css: string, sampleValues: Record<string, string>): string {
-  let rendered = html;
-  for (const [k, v] of Object.entries(sampleValues)) {
-    rendered = rendered.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g'), v || `<span style="background:#fbbf2444;border-radius:3px;padding:0 2px">{{${k}}}</span>`);
-  }
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:sans-serif}${css}</style></head><body>${rendered}</body></html>`;
+  const rendered = html.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key: string) => {
+    const value = sampleValues[key]?.trim();
+    return value || `<span style="background:#fbbf2444;border-radius:3px;padding:0 2px">${match}</span>`;
+  });
+  return stripScriptsForPreview(buildOfferDocument(rendered, css, {}));
 }
 
 export function TemplatesPage() {
@@ -67,7 +71,9 @@ export function TemplatesPage() {
   const [previewHtml, setPreviewHtml] = useState('');
   const [activeTab, setActiveTab] = useState<'html' | 'css'>('html');
 
-  const detectedVars = extractVariables(form.htmlContent ?? '');
+  const detectedVars = extractTemplateVariables(form.htmlContent ?? '');
+  const validation = validateTemplateContent(form.htmlContent ?? '', form.cssContent ?? '');
+
 
   const refreshPreview = useCallback(() => {
     const html = form.htmlContent ?? '';
@@ -88,25 +94,25 @@ export function TemplatesPage() {
   const createMutation = useMutation({
     mutationFn: (data: Partial<Template>) => resourceApi.create<Partial<Template>, Template>(endpoints.templates, data),
     onSuccess: () => { toast.success('Template created'); close(); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Template>) => resourceApi.update<Partial<Template>, Template>(endpoints.templates, editing!.id, data),
     onSuccess: () => { toast.success('Template updated'); close(); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const defaultMutation = useMutation({
-    mutationFn: (id: string) => httpClient.patch<ApiResponse<Template>>(`${endpoints.templates}/${id}/set-default`),
+    mutationFn: (id: string) => httpClient.patch<ApiResponse<Template>>(endpoints.templateSetDefault(id)),
     onSuccess: () => { toast.success('Default template updated'); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => httpClient.delete(`${endpoints.templates}/${id}`),
     onSuccess: () => { toast.success('Template deleted'); setDeleteTarget(null); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const [uploadedImages, setUploadedImages] = useState<{ url: string; key: string; name: string }[]>([]);
@@ -124,7 +130,7 @@ export function TemplatesPage() {
     try {
       const formData = new FormData();
       formData.append('image', file);
-      const res = await httpClient.post<ApiResponse<{ url: string; key: string }>>('/templates/upload-image', formData, {
+      const res = await httpClient.post<ApiResponse<{ url: string; key: string }>>(endpoints.templateUploadImage, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const { url, key } = res.data.data;
@@ -171,11 +177,27 @@ export function TemplatesPage() {
     setUploadedImages([]);
   }
 
+  function fillSampleData() {
+    setSampleValues((prev) => {
+      const next = { ...prev };
+      for (const variable of detectedVars) {
+        if (!next[variable]?.trim()) {
+          next[variable] = TEMPLATE_SAMPLE_DATA[variable] ?? `Sample ${variable.replace(/_/g, ' ')}`;
+        }
+      }
+      return next;
+    });
+  }
+
   function submit() {
     if (!form.name?.trim() || !form.key?.trim() || !form.htmlContent?.trim()) {
       toast.error('Name, key and HTML content are required');
       return;
     }
+    // if (!validation.valid) {
+    //   toast.error('Fix template validation errors before saving');
+    //   return;
+    // }
     if (editing) updateMutation.mutate(form);
     else createMutation.mutate(form);
   }
@@ -200,6 +222,13 @@ export function TemplatesPage() {
         const cat = row.original.category;
         return cat ? <Badge variant="outline" className="text-xs">{cat}</Badge> : <span className="text-muted-foreground text-xs">—</span>;
       },
+    },
+    {
+      id: 'version',
+      header: 'Version',
+      cell: ({ row }) => (
+        <Badge variant="outline" className="text-xs">v{row.original.currentVersion ?? 1}</Badge>
+      ),
     },
     {
       id: 'variables',
@@ -296,7 +325,9 @@ export function TemplatesPage() {
                 <Edit3 className="size-4" />
                 {editing ? 'Edit template' : 'Create template'}
               </DialogTitle>
-              <DialogDescription>Use {'{{variable_name}}'} syntax. Variables are detected automatically.</DialogDescription>
+              <DialogDescription>
+                Use {'{{variable_name}}'} syntax. Variables are validated before save. Editing HTML creates a new version.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-1 gap-4 overflow-hidden min-h-0">
@@ -402,7 +433,12 @@ export function TemplatesPage() {
                 {/* Detected variables */}
                 {detectedVars.length > 0 && (
                   <div className="rounded-xl border border-border bg-white/[0.02] p-3">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">Detected variables — enter sample values for preview</p>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-muted-foreground">Preview with sample data</p>
+                      <Button type="button" variant="outline" size="sm" onClick={fillSampleData}>
+                        Fill sample data
+                      </Button>
+                    </div>
                     <div className="grid gap-2">
                       {detectedVars.map((v) => (
                         <label key={v} className="flex items-center gap-2 text-xs">
@@ -418,6 +454,24 @@ export function TemplatesPage() {
                     </div>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-border bg-white/[0.02] p-3">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Validation</p>
+                  {validation.issues.length === 0 ? (
+                    <p className="text-xs text-emerald-300">Template syntax looks valid.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {validation.issues.map((issue) => (
+                        <li
+                          key={`${issue.type}-${issue.message}`}
+                          className={`text-xs ${issue.type === 'error' ? 'text-rose-300' : 'text-amber-300'}`}
+                        >
+                          {issue.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={close} disabled={busy}><X className="size-4" /> Cancel</Button>
