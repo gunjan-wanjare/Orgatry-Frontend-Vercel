@@ -108,7 +108,7 @@ export function EmployeeFormDialog({
     queryKey: ['employees', 'managers', debouncedSearch],
     queryFn: async () => {
       const response = await httpClient.get<ApiResponse<{ items: ManagerListItem[] }>>(
-        endpoints.userManagement.users,
+        endpoints.employees,
         {
           params: {
             search: debouncedSearch,
@@ -289,7 +289,7 @@ export function EmployeeFormDialog({
                             {manager.firstName} {manager.lastName}
                           </span>
                           <span className="ml-2 text-xs text-muted-foreground">
-                            {manager.designation} · {manager.department}
+                            {manager.designation} - {manager.department}
                           </span>
                         </button>
                       ))}

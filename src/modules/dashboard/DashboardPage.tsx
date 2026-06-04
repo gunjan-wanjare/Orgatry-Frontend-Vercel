@@ -17,6 +17,7 @@ import { httpClient } from '@/services/api/http-client';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@/types/api';
 import type { DashboardStats } from '@/types/domain';
+import { TaskDashboardWidgets } from '@/modules/tasks/TaskDashboardWidgets';
 
 type DashboardVariant = 'employee' | 'hr' | 'admin';
 
@@ -127,6 +128,8 @@ export function DashboardPage() {
             ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-40 rounded-xl" />)
             : primaryCards.map((item) => <StatCard key={item.label} {...item} />)}
         </div>
+
+        <TaskDashboardWidgets />
 
         <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
           <SectionCard title="Attendance analytics" description="Trendline powered by dashboard analytics API.">

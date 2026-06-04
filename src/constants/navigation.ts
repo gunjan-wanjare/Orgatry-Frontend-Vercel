@@ -17,6 +17,8 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  ClipboardList,
+  UserCheck,
   UserCircle,
   UserRoundCog,
   UsersRound
@@ -33,12 +35,14 @@ export type NavigationItem = {
 
 export const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permissions: [], keywords: ['home', 'analytics', 'kpi'] },
-  { label: 'Employee Management', path: '/employees', icon: UsersRound, permissions: [permissions.employeeDirectoryRead, permissions.employeeRead, permissions.employeeWrite, permissions.employeeUserManage], keywords: ['directory', 'employee', 'profile', 'employees', 'accounts'] },
+  { label: 'Employee Management', path: '/employees', icon: UsersRound, permissions: [permissions.employeeRead, permissions.employeeWrite, permissions.employeeUserManage], keywords: ['employee', 'profile', 'employees', 'accounts'] },
   { label: 'Attendance', path: '/attendance', icon: CalendarCheck, permissions: [], keywords: ['check in', 'geo', 'calendar'] },
   { label: 'Leaves', path: '/leaves', icon: ClipboardCheck, permissions: [], keywords: ['approval', 'balance', 'calendar'] },
   { label: 'Recruitment', path: '/recruitment', icon: BriefcaseBusiness, permissions: [permissions.jobRead, permissions.applicationRead], keywords: ['ats', 'jobs', 'candidates'] },
   { label: 'Interviews', path: '/interviews', icon: FileClock, permissions: [permissions.interviewManage], keywords: ['schedule', 'feedback'] },
+  { label: 'Pre-Onboarding', path: '/pre-onboarding', icon: UserCheck, permissions: [permissions.preOnboardingRead, permissions.preOnboardingVerify], keywords: ['candidate', 'verification', 'documents', 'portal'] },
   { label: 'Onboarding', path: '/onboarding', icon: Sparkles, permissions: [permissions.employeeWrite], keywords: ['stepper', 'approval'] },
+  { label: 'Tasks', path: '/tasks', icon: ClipboardList, permissions: [permissions.tasksReadSelf, permissions.tasksReadTeam, permissions.tasksReadDepartment, permissions.tasksReadAll], keywords: ['todo', 'kanban', 'work items', 'task management'] },
   { label: 'Offer Letters', path: '/offer-letters', icon: FileBadge, permissions: [permissions.jobWrite], keywords: ['offer', 'pdf', 'generator'] },
   { label: 'Templates', path: '/templates', icon: FileText, permissions: [permissions.jobWrite], keywords: ['html', 'editor'] },
   { label: 'Roles', path: '/roles', icon: ShieldCheck, permissions: [permissions.rbacManage], keywords: ['rbac', 'assignment'] },

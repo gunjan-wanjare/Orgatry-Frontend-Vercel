@@ -87,7 +87,7 @@ export type AttendanceRecord = {
   checkOutAt?: string;
   workMinutes: number;
   breakMinutes: number;
-  status: 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT';
+  status: 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT' | 'CASUAL_LEAVE' | 'SICK_LEAVE' | 'EARNED_LEAVE' | 'HOLIDAY' | 'WEEKEND';
   createdAt: string;
   updatedAt: string;
 };
@@ -114,7 +114,7 @@ export type LeaveRequest = {
   endDate: string;
   days: number;
   reason?: string;
-  status: 'PENDING_TEAM_LEAD' | 'PENDING_HR' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status: 'PENDING' | 'PENDING_TEAM_LEAD' | 'PENDING_HR' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
 };

@@ -123,7 +123,7 @@ export function DepartmentsTeamsTab() {
     queryKey: ['employees', 'team-assignment'],
     queryFn: async () => {
       const response = await httpClient.get<ApiResponse<{ items: EmployeeItem[] }>>(
-        endpoints.userManagement.users,
+        endpoints.employees,
         {
           params: { limit: 200 },
         },
