@@ -43,6 +43,17 @@ function extractVariables(html: string): string[] {
   return [...new Set(matches.map((m) => m[1]).filter((v): v is string => v !== undefined))];
 }
 
+// Ensure template always has variables extracted
+function ensureTemplateVariables(template: Template): Template {
+  if (!template.variables || template.variables.length === 0) {
+    return {
+      ...template,
+      variables: extractVariables(template.htmlContent),
+    };
+  }
+  return template;
+}
+
 const ForwardTextarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef<typeof Textarea>>(
   function ForwardTextarea(props, ref) {
     return <Textarea ref={ref} {...props} />;
@@ -176,8 +187,11 @@ export function TemplatesPage() {
       toast.error('Name, key and HTML content are required');
       return;
     }
-    if (editing) updateMutation.mutate(form);
-    else createMutation.mutate(form);
+    // Extract variables from HTML content and include in payload
+    const variables = extractVariables(form.htmlContent);
+    const payload = { ...form, variables };
+    if (editing) updateMutation.mutate(payload);
+    else createMutation.mutate(payload);
   }
 
   const busy = createMutation.isPending || updateMutation.isPending;
@@ -256,7 +270,7 @@ export function TemplatesPage() {
   ];
 
   const listQuery = useResourceQuery<Template>('templates', endpoints.templates, { page: 1, limit: 50 });
-  const templates = listQuery.data?.items ?? [];
+  const templates = (listQuery.data?.items ?? []).map(ensureTemplateVariables);
 
   return (
     <PageTransition>

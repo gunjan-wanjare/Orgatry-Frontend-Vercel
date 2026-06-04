@@ -61,12 +61,6 @@ async function downloadAsPdf(html: string, filename: string) {
   const html2pdf = (await import('html2pdf.js')).default;
   const parsed = new DOMParser().parseFromString(html, 'text/html');
   const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '794px';
-  container.style.background = '#ffffff';
-  container.style.color = '#111827';
 
   const body = parsed.body.cloneNode(true) as HTMLElement;
   container.appendChild(body);
@@ -76,14 +70,22 @@ async function downloadAsPdf(html: string, filename: string) {
     style.textContent = styleNode.textContent ?? '';
     container.appendChild(style);
   }
-
   document.body.appendChild(container);
+  const scripts = container.querySelectorAll('script');
+  scripts.forEach(oldScript => {
+    const newScript = document.createElement('script');
+    newScript.text = oldScript.textContent || '';
+    container.appendChild(newScript);
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 500));
+ 
   await html2pdf()
     .set({
       margin: 0,
       filename,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
+      html2canvas: { scale: 2, useCORS: true, logging: false, imageTimeout: 30000 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     })
     .from(container)
@@ -182,7 +184,7 @@ export function OfferLettersPage() {
     try {
       const html = interpolate(selectedTemplate.htmlContent, values);
       const full = buildDoc(html, selectedTemplate.cssContent ?? '');
-      await downloadAsPdf(full, `offer-letter-${generatedId ?? Date.now()}.pdf`);
+      await downloadAsPdf(full, `offer-letter-${values.employee_name?.trim() || 'unknown'}.pdf`);
       toast.success('PDF downloaded');
     } catch {
       toast.error('PDF generation failed');
@@ -403,7 +405,7 @@ export function OfferLettersPage() {
                         className="h-full w-full"
                         style={{ border: 'none', minHeight: 400 }}
                         title="Offer letter preview"
-                        sandbox="allow-same-origin"
+                        sandbox="allow-same-origin allow-scripts"
                       />
                     </div>
                   ) : (
@@ -423,7 +425,7 @@ export function OfferLettersPage() {
                     className="h-full w-full"
                     style={{ border: 'none', minHeight: 500 }}
                     title="Generated offer letter"
-                    sandbox="allow-same-origin"
+                    sandbox="allow-same-origin allow-scripts"
                   />
                 </div>
               </div>
