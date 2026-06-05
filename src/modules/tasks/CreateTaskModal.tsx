@@ -36,6 +36,7 @@ import {
   type TaskPriority,
 } from './useTasks';
 import { employeeDisplayName } from './task-utils';
+import { v4 as uuidv4 } from 'uuid';
 
 const createTaskSchema = z
   .object({
@@ -143,7 +144,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreated }: CreateTaskMod
   const todayInputMin = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const handleAddSubTask = () => {
-    setSubTasks((current) => [...current, { id: crypto.randomUUID(), title: '' }]);
+    setSubTasks((current) => [...current, { id: uuidv4(), title: '' }]);
   };
 
   const handleRemoveSubTask = (id: string) => {
@@ -153,7 +154,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreated }: CreateTaskMod
   const handleSubmit = form.handleSubmit(async (values) => {
     const validSubTasks = subTasks.map((item) => item.title.trim()).filter((title) => title.length >= 3);
 
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = uuidv4();
 
     const result = await createMutation.mutateAsync({
       title: values.title.trim(),
