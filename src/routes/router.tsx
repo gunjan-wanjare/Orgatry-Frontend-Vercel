@@ -84,14 +84,9 @@ const TasksPage = lazy(() =>
     default: module.TasksPage,
   })),
 );
-const OfferLettersPage = lazy(() =>
-  import("@/modules/offer-letters/OfferLettersPage").then((module) => ({
-    default: module.OfferLettersPage,
-  })),
-);
-const TemplatesPage = lazy(() =>
-  import("@/modules/templates/TemplatesPage").then((module) => ({
-    default: module.TemplatesPage,
+const MailersAndDocsPage = lazy(() =>
+  import("@/modules/mailers-and-docs/MailersAndDocsPage").then((module) => ({
+    default: module.MailersAndDocsPage,
   })),
 );
 const RolesPage = lazy(() =>
@@ -265,10 +260,11 @@ export const router = createBrowserRouter([
             element: <ProtectedRoute permissions={[permissions.jobWrite]} />,
             children: [
               {
-                path: "/offer-letters",
-                element: lazyElement(<OfferLettersPage />),
+                path: "/mailers-and-docs",
+                element: lazyElement(<MailersAndDocsPage />),
               },
-              { path: "/templates", element: lazyElement(<TemplatesPage />) },
+              { path: "/offer-letters", element: lazyElement(<Navigate to="/mailers-and-docs" replace />) },
+              { path: "/templates", element: lazyElement(<Navigate to="/mailers-and-docs" replace />) },
             ],
           },
           {

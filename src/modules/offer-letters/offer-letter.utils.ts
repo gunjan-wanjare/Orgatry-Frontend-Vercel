@@ -46,7 +46,7 @@ export function validateTemplateContent(html: string, css?: string | null): Temp
     issues.push({ type: 'error', message: 'Malformed placeholder syntax (unclosed {{ )' });
   }
 
-  if (/<(script|iframe|object|embed|form|base|meta|link)[\s>]/i.test(html) || (css && /<(script|iframe)[\s>]/i.test(css))) {
+  if (/<(script|iframe|object|embed)[\s>]/i.test(html) || (css && /<(script|iframe)[\s>]/i.test(css))) {
     issues.push({ type: 'error', message: 'Unsafe HTML tags are not allowed' });
   }
 
@@ -80,8 +80,19 @@ export function interpolateTemplate(html: string, vars: Record<string, string>):
 }
 
 export function buildOfferDocument(html: string, css: string, vars: Record<string, string>): string {
-  const body = interpolateTemplate(html, vars);
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:Georgia,serif;color:#111827;background:#fff}${css}</style></head><body>${body}</body></html>`;
+  const interpolated = interpolateTemplate(html, vars);
+  const { html: bodyHtml } = stripExternalStylesheetLinks(interpolated);
+  const safeCss = css ?? '';
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:Georgia,serif;color:#242424;background:#ffffff}${safeCss}</style></head><body>${bodyHtml}</body></html>`;
+}
+
+function stripExternalStylesheetLinks(html: string): { html: string; removedLinks: string[] } {
+  const removedLinks: string[] = [];
+  const cleaned = html.replace(/<link\b[^>]*\brel=["']stylesheet["'][^>]*>/gi, (match) => {
+    removedLinks.push(match);
+    return '';
+  });
+  return { html: cleaned, removedLinks };
 }
 
 /** Remove script tags for iframe preview — scripts cannot run in sandboxed srcDoc anyway. */
@@ -89,64 +100,6 @@ export function stripScriptsForPreview(html: string): string {
   return html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-}
-
-export async function downloadHtmlAsPdf(html: string, filename: string): Promise<void> {
-  const html2pdf = (await import('html2pdf.js')).default;
-
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.left = '0';
-  iframe.style.top = '0';
-  iframe.style.width = '794px';
-  iframe.style.height = '1123px';
-  iframe.style.opacity = '0';
-  iframe.style.pointerEvents = 'none';
-  iframe.style.zIndex = '-1';
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-
-  await new Promise<void>((resolve, reject) => {
-    iframe.onload = () => resolve();
-    iframe.onerror = () => reject(new Error('Failed to load preview frame'));
-    iframe.srcdoc = html;
-  });
-
-  const images = iframe.contentDocument ? Array.from(iframe.contentDocument.images) : [];
-  await Promise.all(
-    images.map(
-      (image) =>
-        new Promise<void>((resolve) => {
-          if (image.complete) {
-            resolve();
-            return;
-          }
-          image.onload = () => resolve();
-          image.onerror = () => resolve();
-        }),
-    ),
-  );
-
-  const target = iframe.contentDocument?.body;
-  if (!target) {
-    document.body.removeChild(iframe);
-    throw new Error('Unable to render PDF content');
-  }
-
-  try {
-    await html2pdf()
-      .set({
-        margin: 10,
-        filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(target)
-      .save();
-  } finally {
-    document.body.removeChild(iframe);
-  }
 }
 
 export const OFFER_STATUS_LABELS: Record<string, string> = {
@@ -172,3 +125,116 @@ export function offerStatusBadgeVariant(status: string): 'violet' | 'success' | 
       return 'violet';
   }
 }
+
+function fmtINR(n: number): string {
+  return '₹' + Number(n).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function numberToIndianWords(n: number): string {
+  if (n === 0) return 'Zero Only';
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+    'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function twoDigits(x: number): string {
+    if (x < 20) return ones[x] ?? '';
+    return (tens[Math.floor(x / 10)] + (x % 10 ? ' ' + ones[x % 10] : '')).trim();
+  }
+  function threeDigits(x: number): string {
+    if (x >= 100) return (ones[Math.floor(x / 100)] ?? '') + ' Hundred' + (x % 100 ? ' ' + twoDigits(x % 100) : '');
+    return twoDigits(x);
+  }
+
+  const crore = Math.floor(n / 10_000_000);
+  const lakh = Math.floor((n % 10_000_000) / 100_000);
+  const thou = Math.floor((n % 100_000) / 1_000);
+  const rest = n % 1_000;
+  const parts: string[] = [];
+  if (crore) parts.push(threeDigits(crore) + ' Crore');
+  if (lakh) parts.push(twoDigits(lakh) + ' Lakh');
+  if (thou) parts.push(twoDigits(thou) + ' Thousand');
+  if (rest) parts.push(threeDigits(rest));
+  return parts.join(' ') + ' Only';
+}
+
+const FORMULA_HELPERS: Record<string, unknown> = {
+  formatINR: fmtINR,
+  numberToWords: numberToIndianWords,
+  round: Math.round,
+  floor: Math.floor,
+  ceil: Math.ceil,
+  abs: Math.abs,
+};
+
+/** Only coerce values that are clearly numeric (not dates or free text). */
+function coerceFormulaVariable(value: string): string | number {
+  const trimmed = String(value).trim();
+  if (!trimmed) return value;
+
+  // Must not contain letters — avoids "01 July 2026" → 12026
+  if (/[a-zA-Z]/.test(trimmed)) return value;
+
+  const normalized = trimmed.replace(/[^0-9.-]/g, '');
+  if (!normalized || normalized === '-' || normalized === '.') return value;
+
+  const num = Number(normalized);
+  return Number.isFinite(num) ? num : value;
+}
+
+export function applyFormulas(
+  variables: Record<string, string>,
+  formulas: Record<string, string>,
+): Record<string, string> {
+  const ctx: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(variables)) {
+    ctx[k] = coerceFormulaVariable(v);
+  }
+
+  const remaining = { ...formulas };
+  let passes = 0;
+  while (Object.keys(remaining).length > 0 && passes < 20) {
+    passes++;
+    for (const [varName, expr] of Object.entries(remaining)) {
+      try {
+        const fn = new Function(
+          ...Object.keys(FORMULA_HELPERS),
+          ...Object.keys(ctx),
+          `return (${expr});`,
+        );
+        ctx[varName] = fn(...Object.values(FORMULA_HELPERS), ...Object.values(ctx));
+        delete remaining[varName];
+      } catch {
+        // Dependency not yet resolved — retry next pass
+      }
+    }
+  }
+
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(ctx)) {
+    result[k] = String(v);
+  }
+  return result;
+}
+
+export function getComputedVariableNames(formulas: Record<string, string>): Set<string> {
+  return new Set(Object.keys(formulas));
+}
+
+export {
+  buildDocumentPdfFilename,
+  downloadHtmlAsPdf,
+  debugHtml2CanvasCapture,
+  captureDomToCanvas,
+  auditCaptureLayout,
+  isPdfDebugEnabled,
+  isCanvasDebugEnabled,
+  openPdfDebugPreview,
+  pdfDebug,
+  PDF_CAPTURE_SCALE,
+} from './pdf-generation.utils';
+export { downloadOfferLetterPdf, downloadPreviewHtmlAsPdf } from './pdf-download.utils';
+export type { PdfGenerationDebugInfo, PdfDownloadOptions, PdfPipelineConfigs, CaptureLayoutAudit } from './pdf-generation.utils';
