@@ -66,7 +66,7 @@ export function LoginPage() {
               <LockKeyhole className="size-5" />
             </div>
             <CardTitle>Sign in</CardTitle>
-            <CardDescription>Use your IITIL Portal user ID and password.</CardDescription>
+            <CardDescription>Use your email or employee ID and password.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={form.handleSubmit(submit)}>
