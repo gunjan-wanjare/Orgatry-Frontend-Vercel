@@ -98,6 +98,7 @@ export const endpoints = {
   offerLetterDetail: (id: string) => `/offer-letters/${id}`,
   offerLetterPreview: (id: string) => `/offer-letters/${id}/preview`,
   offerLetterDownload: (id: string) => `/offer-letters/${id}/download`,
+  offerLetterPdfPreview: "/offer-letters/pdf/preview",
   offerLetterStatus: (id: string) => `/offer-letters/${id}/status`,
   offerLetterRestore: (id: string) => `/offer-letters/${id}/restore`,
   offerLetterGenerate: "/offer-letters/generate",

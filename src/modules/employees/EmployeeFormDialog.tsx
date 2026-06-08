@@ -53,7 +53,7 @@ const defaultValues: EmployeeFormValues = {
   joiningDate: new Date().toISOString().slice(0, 10),
   employmentType: 'FULL_TIME',
   status: 'ACTIVE',
-  reportingManagerId: '',
+  reportingManagerId: undefined,
 };
 
 type ManagerListItem = {
@@ -113,7 +113,6 @@ export function EmployeeFormDialog({
           params: {
             search: debouncedSearch,
             limit: 20,
-            role: 'TEAM_LEAD',
           },
         },
       );
@@ -138,7 +137,7 @@ export function EmployeeFormDialog({
         joiningDate: employee.joiningDate
           ? String(employee.joiningDate).slice(0, 10)
           : defaultValues.joiningDate,
-        reportingManagerId: employee.reportingManagerId ?? '',
+        reportingManagerId: employee.reportingManagerId ?? undefined,
       });
       return;
     }
