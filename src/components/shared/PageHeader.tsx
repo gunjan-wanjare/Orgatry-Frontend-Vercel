@@ -6,9 +6,10 @@ type PageHeaderProps = {
   title: string;
   description: string;
   actions?: ReactNode;
+  actionsContainerClassName?: string;
 };
 
-export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, description, actions, actionsContainerClassName }: PageHeaderProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -21,7 +22,7 @@ export function PageHeader({ eyebrow, title, description, actions }: PageHeaderP
         <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{title}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className={`flex flex-wrap items-center gap-2 ${actionsContainerClassName}`}>{actions}</div> : null}
     </motion.div>
   );
 }

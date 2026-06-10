@@ -48,5 +48,9 @@ export const permissions = {
   tasksComment: 'tasks.comment',
   tasksKanbanMove: 'tasks.kanban.move',
   tasksAnalyticsSelf: 'tasks.analytics.self',
-  tasksAnalyticsTeam: 'tasks.analytics.team'
+  tasksAnalyticsTeam: 'tasks.analytics.team',
+  fnfRead: 'fnf.read',
+  fnfWrite: 'fnf.write',
+  fnfApprove: 'fnf.approve',
+  fnfManage: 'fnf.manage',
 } as const;

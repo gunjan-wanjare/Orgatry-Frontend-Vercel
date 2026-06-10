@@ -1,12 +1,13 @@
 import {
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
   type ColumnDef,
   type SortingState,
   type VisibilityState
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronLeft, ChevronRight, Download, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Download, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,6 +27,7 @@ type DataTableProps<TData> = {
   isLoading?: boolean;
   emptyTitle: string;
   emptyDescription: string;
+  manualSorting?: boolean;
   onSortingChange?: (sorting: SortingState) => void;
   onExport?: () => void;
   page?: number;
@@ -40,6 +42,7 @@ export function DataTable<TData>({
   isLoading = false,
   emptyTitle,
   emptyDescription,
+  manualSorting = false,
   onSortingChange,
   onExport,
   page = 1,
@@ -58,14 +61,15 @@ export function DataTable<TData>({
       sorting,
       columnVisibility
     },
-    manualSorting: true,
+    manualSorting,
     onSortingChange: (updater) => {
       const next = typeof updater === 'function' ? updater(sorting) : updater;
       setSorting(next);
       onSortingChange?.(next);
     },
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
+    ...(manualSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
   });
 
   if (isLoading) {
@@ -121,12 +125,22 @@ export function DataTable<TData>({
                   {headerGroup.headers.map((header) => (
                     <th key={header.id} className="border-b border-border px-4 py-3 text-left font-medium text-muted-foreground">
                       {header.isPlaceholder ? null : (
-                        <button
-                          className={cn('inline-flex items-center gap-1', header.column.getCanSort() && 'hover:text-foreground')}
+                          <button
+                          className={cn(
+                            'inline-flex items-center gap-1',
+                            header.column.getCanSort() && 'hover:text-foreground',
+                            header.column.getIsSorted() && 'text-foreground'
+                          )}
                           onClick={header.column.getToggleSortingHandler()}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() ? <ChevronDown className="size-3" /> : null}
+                          {header.column.getCanSort()
+                            ? header.column.getIsSorted() === 'asc'
+                              ? <ChevronUp className="size-3" />
+                              : header.column.getIsSorted() === 'desc'
+                                ? <ChevronDown className="size-3" />
+                                : <ChevronDown className="size-3 text-muted-foreground/30" />
+                            : null}
                         </button>
                       )}
                     </th>
