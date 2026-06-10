@@ -60,6 +60,7 @@ export const FnFSettlementPage = () => {
       id: "caseId",
       accessorKey: "caseId",
       header: "Case ID",
+      meta: { style: { width: 200, whiteSpace: 'wrap' } },
       cell: ({ row }) => (
         <span className="font-mono text-xs text-cyan-200">{row.original.caseId}</span>
       ),
@@ -68,6 +69,7 @@ export const FnFSettlementPage = () => {
       id: "employeeId",
       accessorKey: "employee.employeeId",
       header: "Employee ID",
+      meta: { style: { width: 180, whiteSpace: 'wrap' } },
       cell: ({ row }) => (
         <span className="font-mono text-xs">{row.original.employee?.employeeId}</span>
       ),
@@ -76,6 +78,7 @@ export const FnFSettlementPage = () => {
       id: "firstName",
       accessorKey: "employee.firstName",
       header: "Employee Name",
+      meta: { style: { width: 240, whiteSpace: 'wrap' } },
       cell: ({ row }) => {
         const e = row.original.employee;
         return <span className="font-medium">{e ? `${e.firstName} ${e.lastName}` : "-"}</span>;
@@ -85,16 +88,19 @@ export const FnFSettlementPage = () => {
       id: "department",
       accessorKey: "employee.department",
       header: "Department",
+      meta: { style: { width: 150, whiteSpace: 'wrap' } },
     },
     {
       id: "designation",
       accessorKey: "employee.designation",
       header: "Designation",
+      meta: { style: { width: 180, whiteSpace: 'wrap' } },
     },
     {
       id: "status",
       accessorKey: "status",
       header: "Status",
+      meta: { style: { width: 120, whiteSpace: 'nowrap' } },
       cell: ({ row }) => (
         <Badge variant="outline" className={`text-xs ${statusColor[row.original.status] ?? ""}`}>
           {row.original.status.replace(/_/g, " ")}
@@ -105,6 +111,7 @@ export const FnFSettlementPage = () => {
       id: "createdAt",
       accessorKey: "createdAt",
       header: "Created Date",
+      meta: { style: { width: 180, whiteSpace: 'wrap' } },
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
           {formatDateTime(row.original.createdAt)}
@@ -115,6 +122,7 @@ export const FnFSettlementPage = () => {
       id: "updatedAt",
       accessorKey: "updatedAt",
       header: "Last Updated",
+      meta: { style: { width: 180, whiteSpace: 'wrap' } },
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
           {formatDateTime(row.original.updatedAt)}
@@ -123,6 +131,7 @@ export const FnFSettlementPage = () => {
     },
     {
       id: "actions",
+      meta: { sticky: 'right', style: { width: 180}},
       cell: ({ row }) => {
         const settlement = row.original;
         const canDelete = canWrite && (settlement.status === "PENDING_APPROVAL" || settlement.status === "DRAFT");
@@ -281,6 +290,7 @@ export const FnFSettlementPage = () => {
               emptyTitle="No settlements found"
               emptyDescription="Create a new Full & Final settlement to get started."
               onSortingChange={setSorting}
+              fullWidth={false}
               page={page}
               totalPages={data?.meta.totalPages ?? 0}
               total={data?.meta.total ?? 0}

@@ -9,6 +9,15 @@ import {
 } from '@tanstack/react-table';
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Download, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
+
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData, TValue> {
+    style?: CSSProperties;
+    sticky?: 'left' | 'right';
+  }
+}
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -28,6 +37,7 @@ type DataTableProps<TData> = {
   emptyTitle: string;
   emptyDescription: string;
   manualSorting?: boolean;
+  fullWidth?: boolean;
   onSortingChange?: (sorting: SortingState) => void;
   onExport?: () => void;
   page?: number;
@@ -43,6 +53,7 @@ export function DataTable<TData>({
   emptyTitle,
   emptyDescription,
   manualSorting = false,
+  fullWidth = true,
   onSortingChange,
   onExport,
   page = 1,
@@ -116,14 +127,23 @@ export function DataTable<TData>({
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border">
-        <div className="max-w-full overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-sm">
+      <div className="overflow-x-auto rounded-xl border border-border">
+          <table className={cn("min-w-[760px] border-collapse text-sm", fullWidth && "w-full")}>
             <thead className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="border-b border-border px-4 py-3 text-left font-medium text-muted-foreground">
+                  {headerGroup.headers.map((header) => {
+                    const sticky = header.column.columnDef.meta?.sticky;
+                    const stickyStyle: CSSProperties = sticky
+                      ? {
+                          position: 'sticky',
+                          zIndex: 20,
+                          backgroundColor: 'hsl(var(--background))',
+                          ...(sticky === 'right' ? { right: 0 } : { left: 0 }),
+                        }
+                      : {};
+                    return (
+                    <th key={header.id} className="border-b border-border px-4 py-3 text-left font-medium text-muted-foreground" style={{ ...stickyStyle, ...header.column.columnDef.meta?.style }}>
                       {header.isPlaceholder ? null : (
                           <button
                           className={cn(
@@ -144,23 +164,34 @@ export function DataTable<TData>({
                         </button>
                       )}
                     </th>
-                  ))}
+                    );
+                  })}
                 </tr>
               ))}
             </thead>
             <tbody>
               {table.getRowModel().rows.map((row) => (
                 <tr key={row.id} className="border-b border-border/70 transition-colors hover:bg-white/[0.035]">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-4 text-muted-foreground">
+                  {row.getVisibleCells().map((cell) => {
+                    const sticky = cell.column.columnDef.meta?.sticky;
+                    const stickyStyle: CSSProperties = sticky
+                      ? {
+                          position: 'sticky',
+                          zIndex: 10,
+                          backgroundColor: 'hsl(var(--background))',
+                          ...(sticky === 'right' ? { right: 0 } : { left: 0 }),
+                        }
+                      : {};
+                    return (
+                    <td key={cell.id} className="px-4 py-4 text-muted-foreground" style={{ ...stickyStyle, ...cell.column.columnDef.meta?.style }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
-                  ))}
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">

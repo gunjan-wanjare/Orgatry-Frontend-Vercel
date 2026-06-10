@@ -83,9 +83,7 @@ export type AttendanceLeaveSettlement = {
   totalWorkingDaysFinalMonth: number;
   presentDays: number;
   absentDays: number;
-  leaveBalanceEl: number;
-  leaveBalanceCl: number;
-  leaveBalanceSl: number;
+  leaveBalances: Record<string, number>;
   leaveEncashmentEligible: boolean;
   leaveEncashmentDays: number;
   unpaidLeaveDays: number;
