@@ -7,8 +7,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: crediple-india-private-limited/orgatry-frontend
 jobs:
-  
-  
   build-and-push-image:
     runs-on: ubuntu-latest
     permissions:
