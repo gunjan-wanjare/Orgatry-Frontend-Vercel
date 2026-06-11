@@ -64,6 +64,7 @@ function getDefaultValues(): EmployeeFormValues {
     department: '',
     joiningDate: new Date().toISOString().slice(0, 10),
     workLocation: undefined,
+    roleId: undefined,
     hrSpocId: undefined,
     employmentType: 'FULL_TIME',
     status: 'ACTIVE',
@@ -120,6 +121,20 @@ export function EmployeeFormDialog({
         endpoints.config.byKey('hr.designations'),
       );
       return response.data.data?.value ?? [];
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+
+  type RoleOption = { id: string; name: string };
+
+  const { data: roleOptions = [] } = useQuery({
+    queryKey: ['employees', 'role-options'],
+    queryFn: async () => {
+      const response = await httpClient.get<ApiResponse<RoleOption[]>>(
+        endpoints.employeeRoleOptions,
+      );
+      return response.data.data ?? [];
     },
     enabled: open,
     staleTime: 60_000,
@@ -376,6 +391,27 @@ export function EmployeeFormDialog({
                   {form.formState.errors.designation.message}
                 </span>
               )}
+            </div>
+
+            <div className="grid gap-2 text-sm">
+              <Label>Role</Label>
+              <Select
+                value={form.watch('roleId') ?? ''}
+                onValueChange={(value) =>
+                  form.setValue('roleId', value, { shouldValidate: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <FormField

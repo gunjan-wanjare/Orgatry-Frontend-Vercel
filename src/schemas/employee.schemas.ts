@@ -33,6 +33,11 @@ export const employeeFormSchema = z.object({
     "CONSULTANT",
   ]),
   status: z.enum(["ACTIVE", "INACTIVE", "ON_NOTICE", "TERMINATED"]),
+  roleId: z
+    .string()
+    .optional()
+    .transform((val) => (val === "" ? undefined : val))
+    .pipe(z.string().uuid().optional()),
   hrSpocId: z
     .string()
     .optional()
