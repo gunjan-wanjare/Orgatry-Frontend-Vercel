@@ -2,33 +2,41 @@ import { Label } from "@/components/ui/label";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { CurrencyField, formatCurrency, type SectionTabProps } from "./fields";
 
-const DeductionsTab = ({ value, onChange }: SectionTabProps) => {
+const DeductionsTab = ({ value, onChange, errors }: SectionTabProps) => {
   return (
     <SectionCard title="Deductions Section">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <CurrencyField label="PF Employee Contribution" value={value.pfEmployeeContribution}
           onChange={(v) => onChange((p) => ({ ...p, pfEmployeeContribution: v }))}
+          error={errors?.pfEmployeeContribution || ""}
         />
         <CurrencyField label="Professional Tax" value={value.professionalTax}
           onChange={(v) => onChange((p) => ({ ...p, professionalTax: v }))}
+          error={errors?.professionalTax || ""}
         />
         <CurrencyField label="Income Tax (TDS)" value={value.incomeTaxTds}
           onChange={(v) => onChange((p) => ({ ...p, incomeTaxTds: v }))}
+          error={errors?.incomeTaxTds || ""}
         />
         <CurrencyField label="Loan Recovery" value={value.loanRecovery}
           onChange={(v) => onChange((p) => ({ ...p, loanRecovery: v }))}
+          error={errors?.loanRecovery || ""}
         />
         <CurrencyField label="Advance Salary Recovery" value={value.advanceSalaryRecovery}
           onChange={(v) => onChange((p) => ({ ...p, advanceSalaryRecovery: v }))}
+          error={errors?.advanceSalaryRecovery || ""}
         />
         <CurrencyField label="Asset Recovery Charges" value={value.assetRecoveryCharges}
           onChange={(v) => onChange((p) => ({ ...p, assetRecoveryCharges: v }))}
+          error={errors?.assetRecoveryCharges || ""}
         />
         <CurrencyField label="Notice Pay Recovery" value={value.noticePayRecovery}
           onChange={(v) => onChange((p) => ({ ...p, noticePayRecovery: v }))}
+          error={errors?.noticePayRecovery || ""}
         />
         <CurrencyField label="Any Other Deduction" value={value.anyOtherDeduction}
           onChange={(v) => onChange((p) => ({ ...p, anyOtherDeduction: v }))}
+          error={errors?.anyOtherDeduction || ""}
         />
         <div className="flex items-end">
           <div className="flex-1 rounded-lg border border-red-500/30 bg-red-500/5 p-3">

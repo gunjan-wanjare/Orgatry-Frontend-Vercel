@@ -45,12 +45,12 @@ export const fnfSettlementApi = {
     return response.data.data;
   },
 
-  async approve(id: string, payload: { remarks?: string }) {
+  async approve(id: string, payload: { remarks?: string; step?: string }) {
     const response = await httpClient.post<ApiResponse<FnFSettlementDetail>>(endpoints.fnf.approve(id), payload);
     return response.data.data;
   },
 
-  async reject(id: string, payload: { remarks: string }) {
+  async reject(id: string, payload: { remarks: string; step?: string }) {
     const response = await httpClient.post<ApiResponse<FnFSettlementDetail>>(endpoints.fnf.reject(id), payload);
     return response.data.data;
   },
@@ -58,6 +58,14 @@ export const fnfSettlementApi = {
   async getLetter(id: string) {
     const response = await httpClient.get<ApiResponse<{ letterHtml: string }>>(endpoints.fnf.letter(id));
     return response.data.data.letterHtml;
+  },
+
+  async getLetterPdf(id: string) {
+    const response = await httpClient.get<Blob>(endpoints.fnf.letterPdf(id), {
+      responseType: 'blob',
+      timeout: 120_000,
+    });
+    return response.data;
   },
 
   async getEmployeeData(employeeId: string) {
@@ -69,7 +77,7 @@ export const fnfSettlementApi = {
     return response.data.data;
   },
 
-  async acknowledge(id: string, payload: { acceptance: string; disputeRemarks?: string }) {
+  async acknowledge(id: string, payload: { acceptance: string; disputeRemarks?: string; digitalSignatureStatus?: string }) {
     const response = await httpClient.post<ApiResponse<FnFSettlementDetail>>(endpoints.fnf.acknowledge(id), payload);
     return response.data.data;
   },

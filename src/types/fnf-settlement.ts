@@ -98,6 +98,7 @@ export type SalaryEarnings = {
   specialAllowance: number;
   otherEarnings: number;
   incentivesBonusPayable: number;
+  leaveEncashment: number;
   arrears: number;
   noticePeriodRecovery: number;
   finalGrossSalary: number;
@@ -127,11 +128,14 @@ export type AssetsClearance = {
   mobileSim: AssetItem;
   accessCard: AssetItem;
   idCard: AssetItem;
+  documentsFiles: AssetItem;
+  softwareLicensesStatus: AssetItem;
+  systemCredentials: AssetItem;
   emailAccessDisabled: boolean;
   emailAccessDisabledDate: string;
   systemAccessDisabled: boolean;
   systemAccessDisabledDate: string;
-  softwareLicensesAssigned: string[];
+  softwareLicensesAssigned: { id: string; licenseName: string; licenseKey: string }[];
   assetRecoveryStatus: ClearanceStatus;
   assetDamageCharges: number;
 };
@@ -195,7 +199,6 @@ export type EmployeeAcknowledgement = {
 
 export type AuditLogInfo = {
   caseId: string;
-  srn: string;
   createdBy: string;
   createdDate: string;
   lastUpdatedBy: string;

@@ -31,6 +31,7 @@ import { fnfSettlementApi, fnfKeys } from "@/services/api/fnf-settlement.api";
 import { downloadFnFSettlementPdf } from "./pdf-download.utils";
 import { generateSettlementLetterHtml } from "./settlement-letter.utils";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useCurrentUser } from "@/store/auth.store";
 import { permissions } from "@/constants/permissions";
 import { getErrorMessage } from "@/lib/errors";
 import type { FnFSettlementDetail, FnFStatus } from "@/types/fnf-settlement";
@@ -57,6 +58,14 @@ const statusColor: Record<FnFStatus, string> = {
   CLOSED: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
 };
 
+const approvalSteps = [
+  { key: "reportingManager", label: "Reporting Manager", rolePatterns: ["reporting", "manager", "reporting_manager"] },
+  { key: "hr", label: "HR", rolePatterns: ["hr"] },
+  { key: "finance", label: "Finance", rolePatterns: ["finance"] },
+  { key: "adminClearance", label: "Admin Clearance", rolePatterns: ["admin"] },
+  { key: "finalAuthorization", label: "Final Authorization (HR Head / CFO)", rolePatterns: ["cfo", "hr_head", "final", "authorization"] },
+];
+
 type TabKey =
   | "employee-master"
   | "separation"
@@ -79,8 +88,9 @@ export const FnFSettlementDetailPage = () => {
   const queryClient = useQueryClient();
   const activeTab = (searchParams.get("tab") as TabKey) || "employee-master";
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectRemarks, setRejectRemarks] = useState("");
-  const [approveRemarks, setApproveRemarks] = useState("");
+  const [rejectRemarks, setRejectRemarks] = useState<string>("");
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveRemarks, setApproveRemarks] = useState<string>("");
   const [downloading, setDownloading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { can, canDo } = usePermissions();
@@ -88,6 +98,7 @@ export const FnFSettlementDetailPage = () => {
   const canManage = canDo("fnf", "manage");
   const canWrite = can(permissions.fnfWrite) || canDo("fnf", "write") || canManage;
   const canApprove = can(permissions.fnfApprove) || canDo("fnf", "approve") || canManage;
+  const currentUser = useCurrentUser();
 
   const { data: settlement, isLoading } = useQuery({
     queryKey: fnfKeys.detail(id),
@@ -96,7 +107,26 @@ export const FnFSettlementDetailPage = () => {
     staleTime: 30_000,
     gcTime: 60_000,
   });
+  const status = settlement?.status;
 
+  const currentPendingStep = useMemo(() => {
+    if (!settlement || status !== "PENDING_APPROVAL") return null;
+    const approvals = settlement.approvals as Record<string, { status?: string }> | undefined;
+    if (!approvals) return approvalSteps[0];
+    for (const step of approvalSteps) {
+      const entry = approvals[step.key];
+      if (!entry || entry.status === "PENDING") return step;
+    }
+    return null;
+  }, [settlement, status]);
+
+  const canActOnCurrentStep = useMemo(() => {
+    if (!currentPendingStep || !canApprove) return false;
+    const userRoles = currentUser?.roles?.map((r) => r.toLowerCase()) ?? [];
+    return currentPendingStep.rolePatterns.some((pattern) =>
+      userRoles.some((role) => role.includes(pattern))
+    );
+  }, [currentPendingStep, canApprove, currentUser?.roles]);
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: fnfKeys.detail(id) });
     queryClient.invalidateQueries({ queryKey: fnfKeys.all });
@@ -106,7 +136,7 @@ export const FnFSettlementDetailPage = () => {
     if (!settlement) return;
     try {
       setDownloading(true);
-      await downloadFnFSettlementPdf(settlement);
+      await downloadFnFSettlementPdf(settlement.id);
       toast.success("PDF downloaded");
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -160,6 +190,31 @@ export const FnFSettlementDetailPage = () => {
     setAcknowledgement(settlement.employeeAcknowledgement as unknown as Record<string, unknown>);
   }, [settlement]);
 
+  // Auto-calculate pro-rata salary calculation based on entered and fetched data
+  useEffect(() => {
+    const basic = Number(salaryEarnings.basicSalary ?? 0);
+    const hra = Number(salaryEarnings.hra ?? 0);
+    const conveyance = Number(salaryEarnings.conveyanceAllowance ?? 0);
+    const special = Number(salaryEarnings.specialAllowance ?? 0);
+    const presentDays = Number(attendanceLeave.presentDays ?? 0);
+    const totalDays = Number(attendanceLeave.totalWorkingDaysFinalMonth ?? 0);
+
+    const calculated = totalDays > 0 ? Math.round((basic + hra + conveyance + special) * (presentDays / totalDays) * 100) / 100 : 0;
+    if (Number(salaryEarnings.proRataSalary ?? 0) !== calculated) {
+      setSalaryEarnings((prev) => ({
+        ...prev,
+        proRataSalary: calculated,
+      }));
+    }
+  }, [
+    salaryEarnings.basicSalary,
+    salaryEarnings.hra,
+    salaryEarnings.conveyanceAllowance,
+    salaryEarnings.specialAllowance,
+    attendanceLeave.presentDays,
+    attendanceLeave.totalWorkingDaysFinalMonth,
+  ]);
+
   const saveMutation = useMutation({
     mutationFn: (payload: Partial<FnFSettlementDetail>) => fnfSettlementApi.update(id, payload),
     onSuccess: () => { toast.success("Saved"); invalidate(); },
@@ -173,13 +228,13 @@ export const FnFSettlementDetailPage = () => {
   });
 
   const approveMutation = useMutation({
-    mutationFn: () => fnfSettlementApi.approve(id, { remarks: approveRemarks }),
-    onSuccess: () => { toast.success("Approved"); invalidate(); setApproveRemarks(""); },
+    mutationFn: () => fnfSettlementApi.approve(id, { remarks: approveRemarks, step: currentPendingStep?.key as string }),
+    onSuccess: () => { toast.success("Approved"); invalidate(); setApproveDialogOpen(false); setApproveRemarks(""); },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => fnfSettlementApi.reject(id, { remarks: rejectRemarks }),
+    mutationFn: () => fnfSettlementApi.reject(id, { remarks: rejectRemarks, step: currentPendingStep?.key  as string}),
     onSuccess: () => { toast.success("Rejected"); invalidate(); setRejectDialogOpen(false); setRejectRemarks(""); },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -207,6 +262,36 @@ export const FnFSettlementDetailPage = () => {
     return `${val}T00:00:00.000Z`;
   };
   const handleSave = useCallback(() => {
+    const hasProRata = Number(salaryEarnings.proRataSalary ?? 0) > 0;
+    const computedTotalEarnings = hasProRata
+      ? Number(salaryEarnings.proRataSalary ?? 0) + Number(salaryEarnings.otherEarnings ?? 0) +
+        Number(salaryEarnings.incentivesBonusPayable ?? 0) + Number(salaryEarnings.leaveEncashment ?? 0) +
+        Number(financeReimbursement?.approvedUnpaidReimbursements ?? 0) + Number(salaryEarnings.arrears ?? 0)
+      : Number(salaryEarnings.basicSalary ?? 0) + Number(salaryEarnings.hra ?? 0) +
+        Number(salaryEarnings.conveyanceAllowance ?? 0) + Number(salaryEarnings.specialAllowance ?? 0) +
+        Number(salaryEarnings.otherEarnings ?? 0) + Number(salaryEarnings.incentivesBonusPayable ?? 0) +
+        Number(salaryEarnings.leaveEncashment ?? 0) + Number(financeReimbursement?.approvedUnpaidReimbursements ?? 0) +
+        Number(salaryEarnings.arrears ?? 0);
+
+    const computedTotalDeductions = Number(deductions.pfEmployeeContribution ?? 0) +
+      Number(deductions.professionalTax ?? 0) + Number(deductions.incomeTaxTds ?? 0) +
+      Number(deductions.loanRecovery ?? 0) + Number(deductions.advanceSalaryRecovery ?? 0) +
+      Number(deductions.assetRecoveryCharges ?? 0) + Number(assetsClearance?.assetDamageCharges ?? 0) +
+      Number(deductions.noticePayRecovery ?? 0) + Number(deductions.anyOtherDeduction ?? 0);
+
+    const computedNetPayable = computedTotalEarnings - computedTotalDeductions;
+    const netPayable = computedNetPayable > 0 ? computedNetPayable : 0;
+    const netRecoverable = computedNetPayable < 0 ? Math.abs(computedNetPayable) : 0;
+    const settlementType = computedNetPayable >= 0 ? "CREDIT" : "DEBIT";
+
+    const computedFinalGrossSalary = hasProRata
+      ? Number(salaryEarnings.proRataSalary ?? 0) + Number(salaryEarnings.otherEarnings ?? 0) +
+        Number(salaryEarnings.incentivesBonusPayable ?? 0) + Number(salaryEarnings.arrears ?? 0)
+      : Number(salaryEarnings.basicSalary ?? 0) + Number(salaryEarnings.hra ?? 0) +
+        Number(salaryEarnings.conveyanceAllowance ?? 0) + Number(salaryEarnings.specialAllowance ?? 0) +
+        Number(salaryEarnings.otherEarnings ?? 0) + Number(salaryEarnings.incentivesBonusPayable ?? 0) +
+        Number(salaryEarnings.arrears ?? 0);
+
     const payload: Record<string, unknown> = {
       employeeMaster: {
         ...employeeMaster,
@@ -219,16 +304,26 @@ export const FnFSettlementDetailPage = () => {
         resignationAcceptanceDate: toIsoDate(String(separation.resignationAcceptanceDate ?? "")),
       },
       attendanceLeave,
-      salaryEarnings,
+      salaryEarnings: {
+        ...salaryEarnings,
+        finalGrossSalary: computedFinalGrossSalary,
+      },
       deductions,
       assetsClearance,
       financeReimbursement,
       statutoryCompliance,
-      finalSettlement,
+      finalSettlement: {
+        ...finalSettlement,
+        totalEarnings: computedTotalEarnings,
+        totalDeductions: computedTotalDeductions,
+        netPayable,
+        netRecoverable,
+        settlementType,
+      },
       employeeAcknowledgement: acknowledgement,
     };
     saveMutation.mutate(payload as Partial<FnFSettlementDetail>);
-  }, [employeeMaster, separation, attendanceLeave, salaryEarnings, deductions, assetsClearance, financeReimbursement, statutoryCompliance, finalSettlement, acknowledgement]);
+  }, [employeeMaster, separation, attendanceLeave, salaryEarnings, deductions, assetsClearance, financeReimbursement, statutoryCompliance, finalSettlement, acknowledgement, saveMutation]);
 
   if (isLoading) {
     return (
@@ -249,7 +344,6 @@ export const FnFSettlementDetailPage = () => {
     );
   }
 
-  const status = settlement.status;
 
   return (
     <PageTransition>
@@ -259,9 +353,14 @@ export const FnFSettlementDetailPage = () => {
         description={`Employee ID: ${String(employeeMaster.employeeId ?? "")}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={`text-xs ${statusColor[status] ?? ""}`}>
-              {status.replace(/_/g, " ")}
+            <Badge variant="outline" className={`text-xs ${statusColor[status!] ?? ""}`}>
+              {status?.replace(/_/g, " ")}
             </Badge>
+            {currentPendingStep && (
+              <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
+                Pending: {currentPendingStep.label}
+              </Badge>
+            )}
             <Button variant="outline" size="sm" onClick={() => navigate("/fnf-settlement")}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
@@ -288,19 +387,14 @@ export const FnFSettlementDetailPage = () => {
                 Submit
               </Button>
             )}
-            {(status === "PENDING_APPROVAL" || status === "DRAFT") && canApprove && (
+            {status === "PENDING_APPROVAL" && canActOnCurrentStep && (
               <>
                 <Button
                   size="sm"
                   className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => approveMutation.mutate()}
-                  disabled={approveMutation.isPending}
+                  onClick={() => setApproveDialogOpen(true)}
                 >
-                  {approveMutation.isPending ? (
-                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="mr-1.5 h-4 w-4" />
-                  )}
+                  <CheckCircle className="mr-1.5 h-4 w-4" />
                   Approve
                 </Button>
                 <Button
@@ -355,11 +449,11 @@ export const FnFSettlementDetailPage = () => {
         </TabsList>
 
         <TabsContent value="employee-master">
-          <EmployeeMasterTab value={employeeMaster} onChange={setEmployeeMaster} />
+          <EmployeeMasterTab value={employeeMaster} onChange={setEmployeeMaster} errors={undefined} />
         </TabsContent>
 
         <TabsContent value="separation">
-          <SeparationTab value={separation} onChange={setSeparation} />
+          <SeparationTab value={separation} onChange={setSeparation} errors={undefined} />
         </TabsContent>
 
         <TabsContent value="attendance-leave">
@@ -367,11 +461,11 @@ export const FnFSettlementDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="salary">
-          <SalaryEarningsTab value={salaryEarnings} onChange={setSalaryEarnings} />
+          <SalaryEarningsTab value={salaryEarnings} onChange={setSalaryEarnings} errors={undefined} />
         </TabsContent>
 
         <TabsContent value="deductions">
-          <DeductionsTab value={deductions} onChange={setDeductions} />
+          <DeductionsTab value={deductions} onChange={setDeductions} errors={undefined} />
         </TabsContent>
 
         <TabsContent value="assets">
@@ -387,7 +481,14 @@ export const FnFSettlementDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="settlement-summary">
-          <SettlementSummaryTab value={finalSettlement} onChange={setFinalSettlement} salaryEarnings={salaryEarnings} />
+          <SettlementSummaryTab
+            value={finalSettlement}
+            onChange={setFinalSettlement}
+            salaryEarnings={salaryEarnings}
+            deductions={deductions}
+            financeReimbursement={financeReimbursement}
+            assetsClearance={assetsClearance}
+          />
         </TabsContent>
 
         <TabsContent value="approvals">
@@ -426,6 +527,30 @@ export const FnFSettlementDetailPage = () => {
             <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending || !rejectRemarks}>
               {rejectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Settlement</DialogTitle>
+            <DialogDescription>Provide remarks for approving this Full & Final settlement.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Enter approval remarks..."
+            value={approveRemarks}
+            onChange={(e) => setApproveRemarks(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
+              {approveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Approve
             </Button>
           </DialogFooter>
         </DialogContent>

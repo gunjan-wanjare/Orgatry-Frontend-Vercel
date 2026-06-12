@@ -1,6 +1,4 @@
-import { downloadHtmlAsPdf } from '@/modules/offer-letters/pdf-generation.utils';
-import { generateSettlementLetterHtml } from './settlement-letter.utils';
-import type { FnFSettlementDetail } from '@/types/fnf-settlement';
+import { fnfSettlementApi } from '@/services/api/fnf-settlement.api';
 
 function createOverlay(): HTMLDivElement {
   const div = document.createElement('div');
@@ -10,13 +8,24 @@ function createOverlay(): HTMLDivElement {
   return div;
 }
 
-export async function downloadFnFSettlementPdf(settlement: FnFSettlementDetail): Promise<void> {
+function triggerBrowserDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadFnFSettlementPdf(settlementId: string): Promise<void> {
   const overlay = createOverlay();
   document.body.appendChild(overlay);
   try {
-    const html = generateSettlementLetterHtml(settlement);
-    const filename = `F&F-Settlement-Letter.pdf`;
-    await downloadHtmlAsPdf(html, filename, { format: 'letter' });
+    const blob = await fnfSettlementApi.getLetterPdf(settlementId);
+    triggerBrowserDownload(blob, 'F&F-Settlement-Letter.pdf');
   } finally {
     document.body.removeChild(overlay);
   }

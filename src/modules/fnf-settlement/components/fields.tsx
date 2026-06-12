@@ -14,26 +14,33 @@ export const formatCurrency = (val: unknown) => {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 }).format(n);
 }
 
-export const Field = ({ label, value }: { label: string; value: unknown }) => {
+const FieldError = ({ error }: { error: string | undefined }) => {
+  if (!error) return null;
+  return <p className="mt-1 text-xs text-rose-400">{error}</p>;
+};
+
+export const Field = ({ label, value, error }: { label: string; value: unknown; error?: string | undefined }) => {
   return (
     <div>
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <p className="mt-1 text-sm">{String(value ?? "-")}</p>
+      <FieldError error={error} />
     </div>
   );
 }
 
-export const SelectField = ({ label, value, onChange, options }: {
+export const SelectField = ({ label, value, onChange, options, error }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
+  error?: string | undefined;
 }) => {
   return (
     <div>
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Select value={value || ""} onValueChange={onChange}>
-        <SelectTrigger className="mt-1">
+        <SelectTrigger className={`mt-1 ${error ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}>
           <SelectValue placeholder={`Select ${label}`} />
         </SelectTrigger>
         <SelectContent>
@@ -42,6 +49,7 @@ export const SelectField = ({ label, value, onChange, options }: {
           ))}
         </SelectContent>
       </Select>
+      <FieldError error={error} />
     </div>
   );
 }
@@ -59,11 +67,12 @@ export const SwitchField = ({ label, checked, onChange }: {
   );
 }
 
-export const InputField = ({ label, value, onChange, type = "text" }: {
+export const InputField = ({ label, value, onChange, type = "text", error }: {
   label: string;
   value: unknown;
   onChange: (v: string) => void;
-  type?: string;
+  type: string;
+  error: string | undefined;
 }) => {
   return (
     <div>
@@ -72,16 +81,18 @@ export const InputField = ({ label, value, onChange, type = "text" }: {
         type={type}
         value={(value ?? "") as string}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1"
+        className={`mt-1 ${error ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
       />
+      <FieldError error={error} />
     </div>
   );
 }
 
-export const NumericField = ({ label, value, onChange }: {
+export const NumericField = ({ label, value, onChange, error }: {
   label: string;
   value: unknown;
   onChange: (v: number) => void;
+  error: string | undefined;
 }) => {
   return (
     <div>
@@ -90,16 +101,18 @@ export const NumericField = ({ label, value, onChange }: {
         type="number"
         value={(value ?? "") as number}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="mt-1"
+        className={`mt-1 ${error ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
       />
+      <FieldError error={error} />
     </div>
   );
 }
 
-export const CurrencyField = ({ label, value, onChange }: {
+export const CurrencyField = ({ label, value, onChange, error }: {
   label: string;
   value: unknown;
   onChange: (v: number) => void;
+  error?: string | undefined;
 }) => {
   return (
     <div>
@@ -110,9 +123,10 @@ export const CurrencyField = ({ label, value, onChange }: {
           type="number"
           value={(value ?? "") as number}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="pl-7"
+          className={`pl-7 ${error ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
         />
       </div>
+      <FieldError error={error} />
     </div>
   );
 }
@@ -120,4 +134,5 @@ export const CurrencyField = ({ label, value, onChange }: {
 export type SectionTabProps = {
   value: Record<string, unknown>;
   onChange: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+  errors?: Record<string, string> | undefined;
 };

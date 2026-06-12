@@ -138,6 +138,7 @@ export const endpoints = {
     approve: (id: string) => `/fnf-settlements/${id}/approve`,
     reject: (id: string) => `/fnf-settlements/${id}/reject`,
     letter: (id: string) => `/fnf-settlements/${id}/letter`,
+    letterPdf: (id: string) => `/fnf-settlements/${id}/letter/pdf`,
     employeeData: (employeeId: string) => `/fnf-settlements/employee/${employeeId}/data`,
     acknowledge: (id: string) => `/fnf-settlements/${id}/acknowledge`,
     approvals: (id: string) => `/fnf-settlements/${id}/approvals`,

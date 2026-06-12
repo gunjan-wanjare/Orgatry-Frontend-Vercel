@@ -47,6 +47,14 @@ const ApprovalsTab = ({ settlement }: ApprovalsTabProps) => {
           );
         })}
       </div>
+      {settlement.approvals?.timestampLogs && (
+        <div className="mt-6 rounded-lg border border-border bg-white/[0.03] p-4">
+          <h4 className="mb-2 text-sm font-medium">Approval Timestamp Logs</h4>
+          <pre className="whitespace-pre-wrap rounded bg-zinc-950/50 p-3 text-xs font-mono text-zinc-300">
+            {settlement.approvals.timestampLogs}
+          </pre>
+        </div>
+      )}
     </SectionCard>
   );
 }
