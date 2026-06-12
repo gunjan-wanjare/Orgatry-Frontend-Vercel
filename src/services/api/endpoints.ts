@@ -43,6 +43,7 @@ export const endpoints = {
   attendanceToday: "/attendance/today",
   attendanceAnalytics: "/attendance/analytics",
   attendanceRegularizations: "/attendance/regularizations",
+  attendanceRegularizationById: (id: string) => `/attendance/regularizations/${id}`,
   attendanceRegularize: "/attendance/regularize",
   leaveRequests: "/leave/requests",
   leaveApply: "/leave/apply",

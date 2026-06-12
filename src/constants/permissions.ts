@@ -12,6 +12,8 @@ export const permissions = {
   attendanceWriteSelf: 'attendance.write.self',
   attendanceRegularizeSelf: 'attendance.regularize.self',
   attendanceApproveTeam: 'attendance.approve.team',
+  attendanceApproveDepartment: 'attendance.approve.department',
+  attendanceApproveAll: 'attendance.approve.all',
   attendanceRead: 'attendance.read',
   attendanceWrite: 'attendance.write',
   leaveRead: 'leave.read',

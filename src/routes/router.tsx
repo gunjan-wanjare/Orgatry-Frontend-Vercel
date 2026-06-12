@@ -206,7 +206,7 @@ export const router = createBrowserRouter([
             element: lazyElement(<AttendancePage />),
           },
           {
-            element: <ProtectedRoute permissions={[permissions.leaveRead]} />,
+            element: <ProtectedRoute permissions={[permissions.leaveRead, permissions.leaveWrite, permissions.leaveApprove]} />,
             children: [
               { path: "/leaves", element: lazyElement(<LeavesPage />) },
             ],
