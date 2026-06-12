@@ -20,6 +20,7 @@ export const endpoints = {
     assignEmployee: (id: string) => `/departments/${id}/employees`
   },
   employees: "/employees",
+  employeeRoleOptions: '/employees/role-options',
   employeeReportingManagerOptions: '/employees/reporting-manager-options',
   employeeReportingManager: (id: string) => `/employees/${id}/reporting-manager`,
   employeeProfile: (id: string) => `/employees/${id}/profile`,

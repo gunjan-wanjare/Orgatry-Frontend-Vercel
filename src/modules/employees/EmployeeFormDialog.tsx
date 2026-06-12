@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
@@ -42,19 +42,35 @@ type EmployeeFormDialogProps = {
   onSubmit: (values: EmployeeFormValues) => void;
 };
 
-const defaultValues: EmployeeFormValues = {
-  employeeId: '',
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  designation: '',
-  department: '',
-  joiningDate: new Date().toISOString().slice(0, 10),
-  employmentType: 'FULL_TIME',
-  status: 'ACTIVE',
-  reportingManagerId: undefined,
-};
+export const LOCATION_OPTIONS = [
+  { label: 'Hyderabad', value: 'HYD' as const },
+  { label: 'London', value: 'LON' as const },
+  { label: 'Singapore', value: 'SIN' as const },
+  { label: 'Dubai', value: 'DUB' as const },
+  { label: 'Remote', value: 'REMOTE' as const },
+  { label: 'Hybrid', value: 'HYBRID' as const },
+  { label: 'WFH', value: 'WFH' as const },
+];
+
+function getDefaultValues(): EmployeeFormValues {
+  return {
+    employeeId: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    designation: '',
+    department: '',
+    joiningDate: new Date().toISOString().slice(0, 10),
+    workLocation: undefined,
+    roleId: undefined,
+    hrSpocId: undefined,
+    employmentType: 'FULL_TIME',
+    status: 'ACTIVE',
+    reportingManagerId: undefined,
+  };
+}
 
 type ManagerListItem = {
   id: string;
@@ -74,11 +90,17 @@ export function EmployeeFormDialog({
 }: EmployeeFormDialogProps) {
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
-    defaultValues,
+    defaultValues: getDefaultValues(),
   });
 
   const [managerSearch, setManagerSearch] = useState('');
+  const [showManagerDropdown, setShowManagerDropdown] = useState(false);
+  const [hrSpocSearch, setHrSpocSearch] = useState('');
+  const [showHrSpocDropdown, setShowHrSpocDropdown] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const debouncedSearch = useDebounce(managerSearch, 300);
+  const debouncedHrSpocSearch = useDebounce(hrSpocSearch, 300);
 
   const { data: departments = [] } = useQuery({
     queryKey: ['config', 'hr.departments'],
@@ -104,6 +126,20 @@ export function EmployeeFormDialog({
     staleTime: 60_000,
   });
 
+  type RoleOption = { id: string; name: string };
+
+  const { data: roleOptions = [] } = useQuery({
+    queryKey: ['employees', 'role-options'],
+    queryFn: async () => {
+      const response = await httpClient.get<ApiResponse<RoleOption[]>>(
+        endpoints.employeeRoleOptions,
+      );
+      return response.data.data ?? [];
+    },
+    enabled: open,
+    staleTime: 60_000,
+  });
+
   const { data: managersData = [] } = useQuery({
     queryKey: ['employees', 'managers', debouncedSearch],
     queryFn: async () => {
@@ -122,36 +158,80 @@ export function EmployeeFormDialog({
     staleTime: 30_000,
   });
 
+  const { data: hrSpocData = [] } = useQuery({
+    queryKey: ['employees', 'hr-spocs', debouncedHrSpocSearch],
+    queryFn: async () => {
+      const response = await httpClient.get<ApiResponse<{ items: ManagerListItem[] }>>(
+        endpoints.employees,
+        {
+          params: {
+            search: debouncedHrSpocSearch,
+            department: 'Human Resources',
+            limit: 20,
+          },
+        },
+      );
+      return response.data.data?.items ?? [];
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
   useEffect(() => {
     if (!open) {
-      form.reset(defaultValues);
+      form.reset(getDefaultValues());
       setManagerSearch('');
+      setShowManagerDropdown(false);
+      setHrSpocSearch('');
+      setShowHrSpocDropdown(false);
       return;
     }
 
     if (employee) {
       form.reset({
-        ...defaultValues,
+        ...getDefaultValues(),
         ...employee,
         employeeId: employee.id ? (employee.employeeId ?? '') : '',
         joiningDate: employee.joiningDate
           ? String(employee.joiningDate).slice(0, 10)
-          : defaultValues.joiningDate,
+          : getDefaultValues().joiningDate,
         reportingManagerId: employee.reportingManagerId ?? undefined,
+        hrSpocId: employee.hrSpocId ?? undefined,
       });
       return;
     }
 
-    form.reset(defaultValues);
+    form.reset(getDefaultValues());
     setManagerSearch('');
+    setShowManagerDropdown(false);
+    setHrSpocSearch('');
+    setShowHrSpocDropdown(false);
   }, [employee, form, open]);
 
   const selectedManagerId = form.watch('reportingManagerId') ?? '';
+  const selectedHrSpocId = form.watch('hrSpocId') ?? '';
 
   const selectedManager = useMemo(
     () => managersData.find((item) => item.id === selectedManagerId),
     [managersData, selectedManagerId],
   );
+
+  const selectedHrSpoc = useMemo(
+    () => hrSpocData.find((item) => item.id === selectedHrSpocId),
+    [hrSpocData, selectedHrSpocId],
+  );
+
+  useEffect(() => {
+    if (selectedManager && !managerSearch) {
+      setManagerSearch(`${selectedManager.firstName} ${selectedManager.lastName}`);
+    }
+  }, [selectedManager]);
+
+  useEffect(() => {
+    if (selectedHrSpoc && !hrSpocSearch) {
+      setHrSpocSearch(`${selectedHrSpoc.firstName} ${selectedHrSpoc.lastName}`);
+    }
+  }, [selectedHrSpoc]);
 
   return (
     <Dialog
@@ -165,12 +245,18 @@ export function EmployeeFormDialog({
           </DialogTitle>
           <DialogDescription>
             {employee?.id
-              ? 'Update employee details. Employee ID is auto-managed.'
-              : 'Employee ID will be auto-generated. Visibility policy is enforced by the API.'}
+              ? 'Update employee details. Password can be left blank to keep the existing one.'
+              : 'Set a password for the new employee. Visibility policy is enforced by the API.'}
           </DialogDescription>
         </DialogHeader>
 
-        <form className="grid gap-4" onSubmit={form.handleSubmit(onSubmit)}>
+        <form className="grid gap-4" onSubmit={form.handleSubmit((values) => {
+          if (!employee?.id && !values.password) {
+            form.setError('password', { message: 'Password is required' });
+            return;
+          }
+          onSubmit(values);
+        })}>
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               label="Work email"
@@ -196,6 +282,64 @@ export function EmployeeFormDialog({
               register={form.register}
               error={form.formState.errors.phone?.message}
             />
+
+            {employee?.id ? (
+              <FormField
+                label="Employee ID"
+                name="employeeId"
+                register={form.register}
+                error={form.formState.errors.employeeId?.message}
+              />
+            ) : null}
+
+            {!employee?.id ? (
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    className="pr-16"
+                    {...form.register('password')}
+                  />
+                  <div className="absolute right-2 top-1/2 flex -translate-y-1/2 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = form.getValues('password');
+                        if (val) {
+                          navigator.clipboard.writeText(val);
+                          setPasswordCopied(true);
+                          setTimeout(() => setPasswordCopied(false), 1500);
+                        }
+                      }}
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+                      title="Copy password"
+                    >
+                      {passwordCopied ? (
+                        <Check className="size-4 text-emerald-400" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((p) => !p)}
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </div>
+                {form.formState.errors.password?.message && (
+                  <span className="text-xs text-rose-300">
+                    {form.formState.errors.password.message}
+                  </span>
+                )}
+              </div>
+            ) : null}
 
             <div className="grid gap-2">
               <Label>Department *</Label>
@@ -249,6 +393,27 @@ export function EmployeeFormDialog({
               )}
             </div>
 
+            <div className="grid gap-2 text-sm">
+              <Label>Role</Label>
+              <Select
+                value={form.watch('roleId') ?? ''}
+                onValueChange={(value) =>
+                  form.setValue('roleId', value, { shouldValidate: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <FormField
               label="Joining date"
               name="joiningDate"
@@ -257,16 +422,118 @@ export function EmployeeFormDialog({
               error={form.formState.errors.joiningDate?.message}
             />
 
+            <div className="grid gap-2 text-sm">
+              <Label>Work Location</Label>
+              <Select
+                value={form.watch('workLocation') ?? ''}
+                onValueChange={(value) =>
+                  form.setValue('workLocation', value as EmployeeFormValues['workLocation'], {
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_OPTIONS.map((loc) => (
+                    <SelectItem key={loc.value} value={loc.value}>
+                      {loc.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2 md:col-span-2">
+              <Label>HR SPOC</Label>
+              <div className="relative">
+                <Input
+                  placeholder="Search HR SPOC name..."
+                  value={hrSpocSearch}
+                  onChange={(event) => {
+                    setHrSpocSearch(event.target.value);
+                    setShowHrSpocDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (hrSpocSearch) setShowHrSpocDropdown(true);
+                  }}
+                  className="mb-1"
+                />
+                {showHrSpocDropdown && hrSpocData.length > 0 && hrSpocSearch && (
+                  <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-slate-900 shadow-xl">
+                    {hrSpocData
+                      .filter((spoc) => spoc.id !== employee?.id)
+                      .map((spoc) => (
+                        <button
+                          key={spoc.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-white/8"
+                          onClick={() => {
+                            form.setValue('hrSpocId', spoc.id, {
+                              shouldValidate: true,
+                            });
+                            setHrSpocSearch(
+                              `${spoc.firstName} ${spoc.lastName}`,
+                            );
+                            setShowHrSpocDropdown(false);
+                          }}
+                        >
+                          <span className="font-medium">
+                            {spoc.firstName} {spoc.lastName}
+                          </span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {spoc.designation} - {spoc.department}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+              {selectedHrSpocId && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>
+                    Selected HR SPOC:{' '}
+                    {selectedHrSpoc
+                      ? `${selectedHrSpoc.firstName} ${selectedHrSpoc.lastName}`
+                      : hrSpocSearch || selectedHrSpocId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      form.setValue('hrSpocId', '');
+                      setHrSpocSearch('');
+                      setShowHrSpocDropdown(true);
+                    }}
+                    className="text-rose-400 hover:text-rose-300"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+              {form.formState.errors.hrSpocId && (
+                <span className="text-xs text-rose-400">
+                  {form.formState.errors.hrSpocId.message}
+                </span>
+              )}
+            </div>
+
             <div className="grid gap-2 md:col-span-2">
               <Label>Reporting Manager</Label>
               <div className="relative">
                 <Input
                   placeholder="Search manager name..."
                   value={managerSearch}
-                  onChange={(event) => setManagerSearch(event.target.value)}
+                  onChange={(event) => {
+                    setManagerSearch(event.target.value);
+                    setShowManagerDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (managerSearch) setShowManagerDropdown(true);
+                  }}
                   className="mb-1"
                 />
-                {managersData.length > 0 && managerSearch && (
+                {showManagerDropdown && managersData.length > 0 && managerSearch && (
                   <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-slate-900 shadow-xl">
                     {managersData
                       .filter((manager) => manager.id !== employee?.id)
@@ -282,6 +549,7 @@ export function EmployeeFormDialog({
                             setManagerSearch(
                               `${manager.firstName} ${manager.lastName}`,
                             );
+                            setShowManagerDropdown(false);
                           }}
                         >
                           <span className="font-medium">
@@ -301,13 +569,14 @@ export function EmployeeFormDialog({
                     Selected manager:{' '}
                     {selectedManager
                       ? `${selectedManager.firstName} ${selectedManager.lastName}`
-                      : selectedManagerId}
+                      : managerSearch || selectedManagerId}
                   </span>
                   <button
                     type="button"
                     onClick={() => {
                       form.setValue('reportingManagerId', '');
                       setManagerSearch('');
+                      setShowManagerDropdown(true);
                     }}
                     className="text-rose-400 hover:text-rose-300"
                   >

@@ -49,6 +49,22 @@ const EMPTY: Partial<Template> = {
   formulas: {},
 };
 
+function extractVariables(html: string): string[] {
+  const matches = [...html.matchAll(/\{\{\s*(\w+)\s*\}\}/g)];
+  return [...new Set(matches.map((m) => m[1]).filter((v): v is string => v !== undefined))];
+}
+
+// Ensure template always has variables extracted
+function ensureTemplateVariables(template: Template): Template {
+  if (!template.variables || template.variables.length === 0) {
+    return {
+      ...template,
+      variables: extractVariables(template.htmlContent),
+    };
+  }
+  return template;
+}
+
 const ForwardTextarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef<typeof Textarea>>(
   function ForwardTextarea(props, ref) {
     return <Textarea ref={ref} {...props} />;
@@ -307,7 +323,7 @@ export function TemplatesTab({ triggerCreate, onCreateHandled }: TemplatesTabPro
   ];
 
   const listQuery = useResourceQuery<Template>('templates', endpoints.templates, { page: 1, limit: 50 });
-  const templates = listQuery.data?.items ?? [];
+  const templates = (listQuery.data?.items ?? []).map(ensureTemplateVariables);
 
   return (
     <>

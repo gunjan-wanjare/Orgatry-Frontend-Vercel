@@ -10,12 +10,14 @@ type FormFieldProps<T extends FieldValues> = {
   type?: string | undefined;
   textarea?: boolean;
   placeholder?: string | undefined;
+  autoComplete?: string | undefined;
 };
 
-export function FormField<T extends FieldValues>({ label, name, register, error, type = 'text', textarea, placeholder }: FormFieldProps<T>) {
+export function FormField<T extends FieldValues>({ label, name, register, error, type = 'text', textarea, placeholder, autoComplete }: FormFieldProps<T>) {
   const inputProps = {
     id: name,
     placeholder,
+    autoComplete,
     ...register(name)
   };
 

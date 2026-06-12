@@ -18,6 +18,7 @@ import { employeeApi } from "@/services/api/employee.api";
 import { OperationalModulePage } from "@/modules/shared/OperationalModulePage";
 import type { EmployeeFormValues } from "@/schemas/employee.schemas";
 import { permissions } from "@/constants/permissions";
+import { LOCATION_OPTIONS } from "./EmployeeFormDialog";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PermissionGate } from "@/components/guards/PermissionGate";
 import {
@@ -147,6 +148,15 @@ export function EmployeesPage() {
       },
       { accessorKey: "department", header: "Department" },
       { accessorKey: "designation", header: "Designation" },
+      {
+        accessorKey: "location",
+        header: "Location",
+        cell: ({ row }) => {
+          const code = String(row.original.location ?? '');
+          const loc = LOCATION_OPTIONS.find((l) => l.value === code);
+          return <span>{loc?.label ?? (code || '-')}</span>;
+        },
+      },
       {
         accessorKey: "status",
         header: "Status",
