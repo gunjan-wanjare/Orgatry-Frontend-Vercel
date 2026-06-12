@@ -1,35 +1,48 @@
 import {
   ArrowLeft,
+  CalendarIcon,
   Download,
   Eye,
   Loader2,
   RefreshCw,
   Trash2,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { ConfirmModal } from '@/components/ui/confirm-modal';
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { format, parseISO } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { endpoints } from '@/services/api/endpoints';
-import { resourceApi } from '@/services/api/resource.api';
-import { httpClient } from '@/services/api/http-client';
-import type { ApiResponse } from '@/types/api';
-import type { ColumnDef } from '@tanstack/react-table';
-import { DataTable } from '@/components/tables/DataTable';
-import { useResourceQuery } from '@/hooks/use-resource-query';
-import { getErrorMessage } from '@/lib/errors';
-import { A4_HEIGHT_PX, A4_WIDTH_PX, PageBreakOverlay } from './PageBreakOverlay';
+} from "@/components/ui/dialog";
+import { endpoints } from "@/services/api/endpoints";
+import { resourceApi } from "@/services/api/resource.api";
+import { httpClient } from "@/services/api/http-client";
+import type { ApiResponse } from "@/types/api";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/tables/DataTable";
+import { useResourceQuery } from "@/hooks/use-resource-query";
+import { getErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
+import {
+  A4_HEIGHT_PX,
+  A4_WIDTH_PX,
+  PageBreakOverlay,
+} from "./PageBreakOverlay";
 import {
   applyFormulas,
   buildDocumentPdfFilename,
@@ -40,7 +53,7 @@ import {
   offerStatusBadgeVariant,
   OFFER_STATUS_LABELS,
   stripScriptsForPreview,
-} from './offer-letter.utils';
+} from "./offer-letter.utils";
 
 type Template = {
   id: string;
@@ -61,7 +74,12 @@ type OfferLetter = {
   templateVersion?: { id: string; version: number; name: string } | null;
   recipientName?: string | null;
   recipientEmail?: string | null;
-  createdBy?: { id: string; firstName: string; lastName: string; email: string } | null;
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
   variables: Record<string, string>;
   generatedUrl?: string | null;
   status: string;
@@ -74,42 +92,56 @@ type GenerateResult = OfferLetter & {
   generatedHtml: string;
 };
 
-type Step = 'form' | 'preview';
+type Step = "form" | "preview";
 
 type DocumentsTabProps = {
   triggerGenerate: boolean;
   onGenerateHandled: () => void;
 };
 
-export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTabProps) {
+export function DocumentsTab({
+  triggerGenerate,
+  onGenerateHandled,
+}: DocumentsTabProps) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [detailOffer, setDetailOffer] = useState<OfferLetter | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OfferLetter | null>(null);
-  const [step, setStep] = useState<Step>('form');
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientEmail, setRecipientEmail] = useState('');
+  const [step, setStep] = useState<Step>("form");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [previewHtml, setPreviewHtml] = useState('');
-  const [generatedOffer, setGeneratedOffer] = useState<GenerateResult | null>(null);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [generatedOffer, setGeneratedOffer] = useState<GenerateResult | null>(
+    null,
+  );
   const [downloading, setDownloading] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'variables' | 'preview'>('variables');
+  const [mobileTab, setMobileTab] = useState<"variables" | "preview">(
+    "variables",
+  );
 
-  const listQuery = useResourceQuery<OfferLetter>('offer-letters', endpoints.offerLetters, {
-    page,
-    limit: 25,
-  });
+  const listQuery = useResourceQuery<OfferLetter>(
+    "offer-letters",
+    endpoints.offerLetters,
+    {
+      page,
+      limit: 25,
+    },
+  );
   const offerLetters = listQuery.data?.items ?? [];
   const totalPages = listQuery.data?.meta.totalPages ?? 1;
 
   const templatesQuery = useQuery({
-    queryKey: ['templates-list'],
-    queryFn: () => resourceApi.list<Template>(endpoints.templates, { page: 1, limit: 100 }),
+    queryKey: ["templates-list"],
+    queryFn: () =>
+      resourceApi.list<Template>(endpoints.templates, { page: 1, limit: 100 }),
   });
   const templates = templatesQuery.data?.items ?? [];
-  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+  const selectedTemplate = templates.find(
+    (template) => template.id === selectedTemplateId,
+  );
 
   useEffect(() => {
     if (!triggerGenerate) return;
@@ -122,19 +154,26 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
     setValues((prev) => {
       const next: Record<string, string> = {};
       for (const variable of selectedTemplate.variables) {
-        next[variable] = prev[variable] ?? '';
+        next[variable] = prev[variable] ?? "";
       }
       return next;
     });
   }, [selectedTemplateId, selectedTemplate]);
 
   useEffect(() => {
-    if (!selectedTemplate || step !== 'form') return;
+    if (!selectedTemplate || step !== "form") return;
     const formulas = selectedTemplate.formulas ?? {};
-    const computed = Object.keys(formulas).length > 0 ? applyFormulas(values, formulas) : values;
+    const computed =
+      Object.keys(formulas).length > 0
+        ? applyFormulas(values, formulas)
+        : values;
     setPreviewHtml(
       stripScriptsForPreview(
-        buildOfferDocument(selectedTemplate.htmlContent, selectedTemplate.cssContent ?? '', computed),
+        buildOfferDocument(
+          selectedTemplate.htmlContent,
+          selectedTemplate.cssContent ?? "",
+          computed,
+        ),
       ),
     );
   }, [values, selectedTemplate, step]);
@@ -145,31 +184,35 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
         ? applyFormulas(values, selectedTemplate.formulas)
         : values;
 
-      return httpClient.post<ApiResponse<GenerateResult>>(endpoints.offerLetterGenerate, {
-        templateId: selectedTemplateId,
-        recipientName,
-        recipientEmail,
-        variables: computedVars,
-      });
+      return httpClient.post<ApiResponse<GenerateResult>>(
+        endpoints.offerLetterGenerate,
+        {
+          templateId: selectedTemplateId,
+          recipientName,
+          recipientEmail,
+          variables: computedVars,
+        },
+      );
     },
     onSuccess: (res) => {
       const data = res.data.data;
       setGeneratedOffer(data);
       setPreviewHtml(stripScriptsForPreview(data.generatedHtml));
-      setStep('preview');
-      toast.success('Document generated');
-      void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
+      setStep("preview");
+      toast.success("Document generated");
+      void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => httpClient.delete(endpoints.offerLetterDetail(id)),
+    mutationFn: (id: string) =>
+      httpClient.delete(endpoints.offerLetterDetail(id)),
     onSuccess: () => {
-      toast.success('Document deleted');
+      toast.success("Document deleted");
       setDeleteTarget(null);
       setDetailOffer(null);
-      void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
+      void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -178,9 +221,9 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       httpClient.patch(endpoints.offerLetterStatus(id), { status }),
     onSuccess: (res) => {
-      toast.success('Status updated');
+      toast.success("Status updated");
       setDetailOffer(res.data.data as OfferLetter);
-      void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
+      void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -188,25 +231,26 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
   const allFilled = useMemo(() => {
     const formulas = selectedTemplate?.formulas ?? {};
     const computedNames = getComputedVariableNames(formulas);
-    const inputVars = selectedTemplate?.variables.filter((v) => !computedNames.has(v)) ?? [];
+    const inputVars =
+      selectedTemplate?.variables.filter((v) => !computedNames.has(v)) ?? [];
     return inputVars.every((v) => values[v]?.trim());
   }, [selectedTemplate, values]);
 
   function openGenerate(cloneFrom?: OfferLetter) {
-    setStep('form');
+    setStep("form");
     setGeneratedOffer(null);
-    setPreviewHtml('');
-    setMobileTab('variables');
+    setPreviewHtml("");
+    setMobileTab("variables");
     if (cloneFrom) {
       setSelectedTemplateId(cloneFrom.templateId);
-      setRecipientName(cloneFrom.recipientName ?? '');
-      setRecipientEmail(cloneFrom.recipientEmail ?? '');
+      setRecipientName(cloneFrom.recipientName ?? "");
+      setRecipientEmail(cloneFrom.recipientEmail ?? "");
       setValues({ ...cloneFrom.variables });
     } else {
       const defaultTemplate = templates.find((template) => template.isDefault);
-      setSelectedTemplateId(defaultTemplate?.id ?? '');
-      setRecipientName('');
-      setRecipientEmail('');
+      setSelectedTemplateId(defaultTemplate?.id ?? "");
+      setRecipientName("");
+      setRecipientEmail("");
       setValues({});
     }
     setGenerateOpen(true);
@@ -214,13 +258,13 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
 
   function closeGenerate() {
     setGenerateOpen(false);
-    setStep('form');
+    setStep("form");
     setGeneratedOffer(null);
-    setPreviewHtml('');
+    setPreviewHtml("");
     setValues({});
-    setSelectedTemplateId('');
-    setRecipientName('');
-    setRecipientEmail('');
+    setSelectedTemplateId("");
+    setRecipientName("");
+    setRecipientEmail("");
   }
 
   async function handleDownload(source?: {
@@ -237,27 +281,41 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
       const filename =
         source?.filename ??
         buildDocumentPdfFilename(
-          source?.recipientName ?? detailOffer?.recipientName ?? generatedOffer?.recipientName ?? recipientName,
-          source?.templateName ?? detailOffer?.template?.name ?? generatedOffer?.template?.name ?? selectedTemplate?.name,
+          source?.recipientName ??
+            detailOffer?.recipientName ??
+            generatedOffer?.recipientName ??
+            recipientName,
+          source?.templateName ??
+            detailOffer?.template?.name ??
+            generatedOffer?.template?.name ??
+            selectedTemplate?.name,
         );
 
       if (offerId) {
         await downloadOfferLetterPdf(offerId, filename);
-        toast.success('PDF downloaded');
+        toast.success("PDF downloaded");
         return;
       }
 
       const html = source?.html ?? previewHtml;
       if (!html) {
-        toast.error('No rendered content available for download');
+        toast.error("No rendered content available for download");
         return;
       }
 
       await downloadPreviewHtmlAsPdf(html, filename, {
-        recipientName: source?.recipientName ?? generatedOffer?.recipientName ?? recipientName ?? null,
-        templateName: source?.templateName ?? generatedOffer?.template?.name ?? selectedTemplate?.name ?? null,
+        recipientName:
+          source?.recipientName ??
+          generatedOffer?.recipientName ??
+          recipientName ??
+          null,
+        templateName:
+          source?.templateName ??
+          generatedOffer?.template?.name ??
+          selectedTemplate?.name ??
+          null,
       });
-      toast.success('PDF downloaded');
+      toast.success("PDF downloaded");
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -267,7 +325,9 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
 
   async function openDetail(offer: OfferLetter) {
     try {
-      const res = await httpClient.get<ApiResponse<OfferLetter>>(endpoints.offerLetterDetail(offer.id));
+      const res = await httpClient.get<ApiResponse<OfferLetter>>(
+        endpoints.offerLetterDetail(offer.id),
+      );
       setDetailOffer(res.data.data ?? offer);
     } catch {
       setDetailOffer(offer);
@@ -276,32 +336,42 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
 
   const columns: ColumnDef<OfferLetter>[] = [
     {
-      id: 'recipient',
-      header: 'Recipient',
+      id: "recipient",
+      header: "Recipient",
       cell: ({ row }) => (
-        <button type="button" className="text-left" onClick={() => void openDetail(row.original)}>
+        <button
+          type="button"
+          className="text-left"
+          onClick={() => void openDetail(row.original)}
+        >
           <span className="font-medium text-foreground text-sm">
-            {row.original.recipientName ?? '—'}
+            {row.original.recipientName ?? "—"}
           </span>
-          <p className="text-xs text-muted-foreground">{row.original.recipientEmail ?? ''}</p>
+          <p className="text-xs text-muted-foreground">
+            {row.original.recipientEmail ?? ""}
+          </p>
         </button>
       ),
     },
     {
-      id: 'template',
-      header: 'Template',
+      id: "template",
+      header: "Template",
       cell: ({ row }) => (
         <div className="text-sm">
-          <p className="font-medium text-foreground">{row.original.template?.name ?? '—'}</p>
+          <p className="font-medium text-foreground">
+            {row.original.template?.name ?? "—"}
+          </p>
           {row.original.templateVersion ? (
-            <p className="text-xs text-muted-foreground">v{row.original.templateVersion.version}</p>
+            <p className="text-xs text-muted-foreground">
+              v{row.original.templateVersion.version}
+            </p>
           ) : null}
         </div>
       ),
     },
     {
-      id: 'status',
-      header: 'Status',
+      id: "status",
+      header: "Status",
       cell: ({ row }) => (
         <Badge variant={offerStatusBadgeVariant(row.original.status)}>
           {OFFER_STATUS_LABELS[row.original.status] ?? row.original.status}
@@ -309,27 +379,37 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
       ),
     },
     {
-      id: 'created',
-      header: 'Created',
+      id: "created",
+      header: "Created",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {new Date(row.original.createdAt).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
+          {new Date(row.original.createdAt).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
           })}
         </span>
       ),
     },
     {
-      id: 'actions',
-      header: '',
+      id: "actions",
+      header: "",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" title="Clone & regenerate" onClick={() => openGenerate(row.original)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Clone & regenerate"
+            onClick={() => openGenerate(row.original)}
+          >
             <RefreshCw className="size-3.5" />
           </Button>
-          <Button size="sm" variant="ghost" title="View details" onClick={() => void openDetail(row.original)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="View details"
+            onClick={() => void openDetail(row.original)}
+          >
             <Eye className="size-3.5" />
           </Button>
           <Button
@@ -367,52 +447,70 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
 
       <Dialog
         open={generateOpen}
-        onOpenChange={(open) => !generateMutation.isPending && !downloading && (open ? setGenerateOpen(true) : closeGenerate())}
+        onOpenChange={(open) =>
+          !generateMutation.isPending &&
+          !downloading &&
+          (open ? setGenerateOpen(true) : closeGenerate())
+        }
       >
         <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden flex flex-col p-0">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
             <div>
               <DialogTitle className="text-base">
-                {step === 'form' ? 'Generate document' : 'Preview document'}
+                {step === "form" ? "Generate document" : "Preview document"}
               </DialogTitle>
               <DialogDescription className="text-xs mt-0.5">
-                {step === 'form'
-                  ? 'Enter recipient details, select a template, and fill mandatory variables before generating.'
-                  : 'Review the generated document and download as PDF.'}
+                {step === "form"
+                  ? "Enter recipient details, select a template, and fill mandatory variables before generating."
+                  : "Review the generated document and download as PDF."}
               </DialogDescription>
             </div>
-            {step === 'preview' ? (
+            {step === "preview" ? (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setStep('form')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("form")}
+                >
                   <ArrowLeft className="size-4" /> Back
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => void handleDownload({
-                    ...(generatedOffer?.id ? { id: generatedOffer.id } : {}),
-                    html: previewHtml,
-                    recipientName: generatedOffer?.recipientName ?? recipientName ?? null,
-                    templateName: generatedOffer?.template?.name ?? selectedTemplate?.name ?? null,
-                    supplementalCss: selectedTemplate?.cssContent ?? '',
-                  })}
+                  onClick={() =>
+                    void handleDownload({
+                      ...(generatedOffer?.id ? { id: generatedOffer.id } : {}),
+                      html: previewHtml,
+                      recipientName:
+                        generatedOffer?.recipientName ?? recipientName ?? null,
+                      templateName:
+                        generatedOffer?.template?.name ??
+                        selectedTemplate?.name ??
+                        null,
+                      supplementalCss: selectedTemplate?.cssContent ?? "",
+                    })
+                  }
                   disabled={downloading}
                 >
-                  {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {downloading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Download className="size-4" />
+                  )}
                   Download PDF
                 </Button>
               </div>
             ) : null}
           </div>
 
-          {step === 'form' ? (
+          {step === "form" ? (
             <div className="flex flex-1 overflow-hidden min-h-0">
               <div className="absolute left-6 top-16 z-10 flex gap-1 rounded-lg border border-border bg-slate-950/80 p-1 md:hidden">
-                {(['variables', 'preview'] as const).map((tab) => (
+                {(["variables", "preview"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setMobileTab(tab)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${mobileTab === tab ? 'bg-white/10 text-foreground' : 'text-muted-foreground'}`}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${mobileTab === tab ? "bg-white/10 text-foreground" : "text-muted-foreground"}`}
                   >
                     {tab}
                   </button>
@@ -420,10 +518,12 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
               </div>
 
               <div
-                className={`flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-border p-6 md:w-96 lg:w-[420px] ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex'}`}
+                className={`flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-border p-6 md:w-96 lg:w-[420px] ${mobileTab === "preview" ? "hidden md:flex" : "flex"}`}
               >
                 <label className="grid gap-1.5 text-sm">
-                  <span className="font-medium text-foreground">Recipient name *</span>
+                  <span className="font-medium text-foreground">
+                    Recipient name *
+                  </span>
                   <Input
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
@@ -432,7 +532,9 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
                 </label>
 
                 <label className="grid gap-1.5 text-sm">
-                  <span className="font-medium text-foreground">Recipient email *</span>
+                  <span className="font-medium text-foreground">
+                    Recipient email *
+                  </span>
                   <Input
                     type="email"
                     value={recipientEmail}
@@ -442,18 +544,24 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
                 </label>
 
                 <label className="grid gap-1.5 text-sm">
-                  <span className="font-medium text-foreground">Template *</span>
+                  <span className="font-medium text-foreground">
+                    Template *
+                  </span>
                   <select
                     className="h-10 rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
                     value={selectedTemplateId}
-                    onChange={(event) => setSelectedTemplateId(event.target.value)}
+                    onChange={(event) =>
+                      setSelectedTemplateId(event.target.value)
+                    }
                   >
                     <option value="">Select template…</option>
                     {templates.map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.name}
-                        {template.isDefault ? ' (default)' : ''}
-                        {template.currentVersion ? ` v${template.currentVersion}` : ''}
+                        {template.isDefault ? " (default)" : ""}
+                        {template.currentVersion
+                          ? ` v${template.currentVersion}`
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -462,24 +570,115 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
                 {(() => {
                   const formulas = selectedTemplate?.formulas ?? {};
                   const computedNames = getComputedVariableNames(formulas);
-                  const inputVars = selectedTemplate?.variables.filter((v) => !computedNames.has(v)) ?? [];
-                  const computedVars = selectedTemplate?.variables.filter((v) => computedNames.has(v)) ?? [];
-                  const computedValues = Object.keys(formulas).length > 0
-                    ? applyFormulas(values, formulas)
-                    : values;
+                  const inputVars =
+                    selectedTemplate?.variables.filter(
+                      (v) => !computedNames.has(v),
+                    ) ?? [];
+                  const computedVars =
+                    selectedTemplate?.variables.filter((v) =>
+                      computedNames.has(v),
+                    ) ?? [];
+                  const computedValues =
+                    Object.keys(formulas).length > 0
+                      ? applyFormulas(values, formulas)
+                      : values;
+
+                  // Helper function to format the display date contextually matching "10 July, 2026"
+                  const formatDateDisplay = (dateString: string) => {
+                    if (!dateString) return "Pick a date";
+
+                    // Check if the saved value is already formatted as "10 July, 2026"
+                    // valid parsed format matching: one or two digits, space, word characters, comma, space, 4 digits
+                    const alreadyFormatted =
+                      /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(dateString);
+                    if (alreadyFormatted) return dateString;
+
+                    try {
+                      return format(parseISO(dateString), "d MMMM, yyyy");
+                    } catch (e) {
+                      return dateString || "Invalid date";
+                    }
+                  };
 
                   return (
                     <>
-                      {inputVars.map((variable) => (
-                        <label key={variable} className="grid gap-1 text-sm">
-                          <span className="font-mono text-[11px] text-cyan-300">{`{{${variable}}}`}</span>
-                          <Input
-                            value={values[variable] ?? ''}
-                            onChange={(event) => setValues((prev) => ({ ...prev, [variable]: event.target.value }))}
-                            placeholder={`Enter ${variable.replace(/_/g, ' ')}…`}
-                          />
-                        </label>
-                      ))}
+                      {inputVars.map((variable) => {
+                        const isDateField = variable
+                          ?.toLowerCase()
+                          .includes("_date");
+                        const formattedLabel = variable
+                          ? variable
+                              .replaceAll("_", " ")
+                              .replace(/^\w/, (c) => c.toUpperCase())
+                          : "";
+
+                        return (
+                          <label key={variable} className="grid gap-1 text-sm">
+                            <span className="font-mono text-[11px] text-cyan-300">
+                              {formattedLabel}
+                            </span>
+
+                            {isDateField ? (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal bg-transparent border-input",
+                                      !values[variable] &&
+                                        "text-muted-foreground",
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <span>
+                                      {formatDateDisplay(values[variable])}
+                                    </span>
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={
+                                      values[variable]
+                                        ? // If it's already customized format, parse it back to date via date-fns or fallback to native
+                                          /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(
+                                            values[variable],
+                                          )
+                                          ? new Date(values[variable])
+                                          : parseISO(values[variable])
+                                        : undefined
+                                    }
+                                    onSelect={(date) =>
+                                      setValues((prev) => ({
+                                        ...prev,
+                                        // This writes "10 July, 2026" directly into your global offer letter data state structure
+                                        [variable]: date
+                                          ? format(date, "d MMMM, yyyy")
+                                          : "",
+                                      }))
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            ) : (
+                              <Input
+                                value={values[variable] ?? ""}
+                                onChange={(event) =>
+                                  setValues((prev) => ({
+                                    ...prev,
+                                    [variable]: event.target.value,
+                                  }))
+                                }
+                                placeholder={`Enter ${variable.replace(/_/g, " ")}…`}
+                              />
+                            )}
+                          </label>
+                        );
+                      })}
 
                       {computedVars.length > 0 && (
                         <div className="rounded-xl border border-border bg-white/[0.02] p-3">
@@ -488,12 +687,15 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
                           </p>
                           <div className="grid gap-2">
                             {computedVars.map((variable) => (
-                              <div key={variable} className="flex items-center gap-2">
+                              <div
+                                key={variable}
+                                className="flex items-center gap-2"
+                              >
                                 <span className="w-36 shrink-0 rounded bg-cyan-500/10 px-1.5 py-1 font-mono text-[11px] text-cyan-300">
                                   {`{{${variable}}}`}
                                 </span>
                                 <Input
-                                  value={computedValues[variable] ?? '—'}
+                                  value={computedValues[variable] ?? "—"}
                                   readOnly
                                   disabled
                                   className="text-xs text-muted-foreground bg-transparent"
@@ -524,21 +726,32 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
                         <Loader2 className="size-4 animate-spin" /> Generating…
                       </>
                     ) : (
-                      'Generate document'
+                      "Generate document"
                     )}
                   </Button>
                 </div>
               </div>
 
-              <div className={`flex flex-1 flex-col overflow-hidden p-4 ${mobileTab === 'variables' ? 'hidden md:flex' : 'flex'}`}>
-                <p className="mb-2 shrink-0 text-xs text-muted-foreground">Live preview</p>
+              <div
+                className={`flex flex-1 flex-col overflow-hidden p-4 ${mobileTab === "variables" ? "hidden md:flex" : "flex"}`}
+              >
+                <p className="mb-2 shrink-0 text-xs text-muted-foreground">
+                  Live preview
+                </p>
                 {selectedTemplate ? (
-                  <div className="relative flex-1 overflow-auto rounded-xl border border-border bg-white mx-auto" style={{ width: A4_WIDTH_PX, maxWidth: '100%' }}>
+                  <div
+                    className="relative flex-1 overflow-auto rounded-xl border border-border bg-white mx-auto"
+                    style={{ width: A4_WIDTH_PX, maxWidth: "100%" }}
+                  >
                     <PageBreakOverlay pageCount={5} />
                     <iframe
                       srcDoc={previewHtml}
                       className="h-full w-full"
-                      style={{ border: 'none', minHeight: A4_HEIGHT_PX, width: A4_WIDTH_PX }}
+                      style={{
+                        border: "none",
+                        minHeight: A4_HEIGHT_PX,
+                        width: A4_WIDTH_PX,
+                      }}
                       title="Document preview"
                       sandbox="allow-same-origin"
                     />
@@ -552,12 +765,19 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
             </div>
           ) : (
             <div className="flex flex-1 overflow-hidden min-h-0 p-4">
-              <div className="relative flex-1 overflow-auto rounded-xl border border-border bg-white mx-auto" style={{ width: A4_WIDTH_PX, maxWidth: '100%' }}>
+              <div
+                className="relative flex-1 overflow-auto rounded-xl border border-border bg-white mx-auto"
+                style={{ width: A4_WIDTH_PX, maxWidth: "100%" }}
+              >
                 <PageBreakOverlay pageCount={5} />
                 <iframe
                   srcDoc={previewHtml}
                   className="h-full w-full"
-                  style={{ border: 'none', minHeight: A4_HEIGHT_PX, width: A4_WIDTH_PX }}
+                  style={{
+                    border: "none",
+                    minHeight: A4_HEIGHT_PX,
+                    width: A4_WIDTH_PX,
+                  }}
                   title="Generated document"
                   sandbox="allow-same-origin"
                 />
@@ -567,41 +787,57 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
         </DialogContent>
       </Dialog>
 
-      <Dialog open={detailOffer !== null} onOpenChange={(open) => !open && setDetailOffer(null)}>
+      <Dialog
+        open={detailOffer !== null}
+        onOpenChange={(open) => !open && setDetailOffer(null)}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Document details</DialogTitle>
-            <DialogDescription>Review document metadata, preview content, and manage status.</DialogDescription>
+            <DialogDescription>
+              Review document metadata, preview content, and manage status.
+            </DialogDescription>
           </DialogHeader>
           {detailOffer ? (
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Recipient</p>
-                  <p className="text-sm font-medium">{detailOffer.recipientName ?? '—'}</p>
-                  <p className="text-xs text-muted-foreground">{detailOffer.recipientEmail ?? ''}</p>
+                  <p className="text-sm font-medium">
+                    {detailOffer.recipientName ?? "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {detailOffer.recipientEmail ?? ""}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Template</p>
                   <p className="text-sm font-medium">
-                    {detailOffer.template?.name ?? '—'}
-                    {detailOffer.templateVersion ? ` (v${detailOffer.templateVersion.version})` : ''}
+                    {detailOffer.template?.name ?? "—"}
+                    {detailOffer.templateVersion
+                      ? ` (v${detailOffer.templateVersion.version})`
+                      : ""}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
                   <Badge variant={offerStatusBadgeVariant(detailOffer.status)}>
-                    {OFFER_STATUS_LABELS[detailOffer.status] ?? detailOffer.status}
+                    {OFFER_STATUS_LABELS[detailOffer.status] ??
+                      detailOffer.status}
                   </Badge>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Created</p>
-                  <p className="text-sm">{new Date(detailOffer.createdAt).toLocaleString()}</p>
+                  <p className="text-sm">
+                    {new Date(detailOffer.createdAt).toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Generated</p>
                   <p className="text-sm">
-                    {detailOffer.generatedAt ? new Date(detailOffer.generatedAt).toLocaleString() : '—'}
+                    {detailOffer.generatedAt
+                      ? new Date(detailOffer.generatedAt).toLocaleString()
+                      : "—"}
                   </p>
                 </div>
               </div>
@@ -610,28 +846,42 @@ export function DocumentsTab({ triggerGenerate, onGenerateHandled }: DocumentsTa
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => void handleDownload({
-                    id: detailOffer.id,
-                    recipientName: detailOffer.recipientName ?? null,
-                    templateName: detailOffer.template?.name ?? null,
-                  })}
+                  onClick={() =>
+                    void handleDownload({
+                      id: detailOffer.id,
+                      recipientName: detailOffer.recipientName ?? null,
+                      templateName: detailOffer.template?.name ?? null,
+                    })
+                  }
                   disabled={downloading}
                 >
-                  {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {downloading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Download className="size-4" />
+                  )}
                   Download PDF
                 </Button>
-                {['SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
+                {["SENT", "ACCEPTED", "REJECTED", "CANCELLED"].map((status) => (
                   <Button
                     key={status}
                     variant="outline"
                     size="sm"
-                    disabled={statusMutation.isPending || detailOffer.status === status}
-                    onClick={() => statusMutation.mutate({ id: detailOffer.id, status })}
+                    disabled={
+                      statusMutation.isPending || detailOffer.status === status
+                    }
+                    onClick={() =>
+                      statusMutation.mutate({ id: detailOffer.id, status })
+                    }
                   >
                     Mark {OFFER_STATUS_LABELS[status]}
                   </Button>
                 ))}
-                <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(detailOffer)}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteTarget(detailOffer)}
+                >
                   Delete
                 </Button>
               </div>
