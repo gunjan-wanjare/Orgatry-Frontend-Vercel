@@ -53,7 +53,7 @@ export const FnFSettlementPage = () => {
   const [deleteTarget, setDeleteTarget] = useState<FnFSettlement | null>(null);
   const { can, canDo } = usePermissions();
   const canRead = can(permissions.fnfRead);
-  const canWrite = can(permissions.fnfWrite) || canDo("fnf", "write") || canDo("fnf", "manage");
+  const canWrite = can(permissions.fnfWrite) || canDo("fnf", "write") || canDo("fnf", "manage") || can(permissions.fnfManage);
 
   const columns = useMemo<ColumnDef<FnFSettlement>[]>(() => [
     {

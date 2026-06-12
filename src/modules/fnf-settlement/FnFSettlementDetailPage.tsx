@@ -95,7 +95,7 @@ export const FnFSettlementDetailPage = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { can, canDo } = usePermissions();
   const canRead = can(permissions.fnfRead);
-  const canManage = canDo("fnf", "manage");
+  const canManage = canDo("fnf", "manage") || can(permissions.fnfManage);
   const canWrite = can(permissions.fnfWrite) || canDo("fnf", "write") || canManage;
   const canApprove = can(permissions.fnfApprove) || canDo("fnf", "approve") || canManage;
   const currentUser = useCurrentUser();
@@ -123,10 +123,12 @@ export const FnFSettlementDetailPage = () => {
   const canActOnCurrentStep = useMemo(() => {
     if (!currentPendingStep || !canApprove) return false;
     const userRoles = currentUser?.roles?.map((r) => r.toLowerCase()) ?? [];
+    const isOverrideUser = canManage || userRoles.includes("super_admin") || userRoles.includes("admin");
+    if (isOverrideUser) return true;
     return currentPendingStep.rolePatterns.some((pattern) =>
       userRoles.some((role) => role.includes(pattern))
     );
-  }, [currentPendingStep, canApprove, currentUser?.roles]);
+  }, [currentPendingStep, canApprove, currentUser?.roles, canManage]);
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: fnfKeys.detail(id) });
     queryClient.invalidateQueries({ queryKey: fnfKeys.all });
@@ -387,7 +389,7 @@ export const FnFSettlementDetailPage = () => {
                 Submit
               </Button>
             )}
-            {status === "PENDING_APPROVAL" && canActOnCurrentStep && (
+            {canActOnCurrentStep && (
               <>
                 <Button
                   size="sm"
