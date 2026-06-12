@@ -584,7 +584,9 @@ export function DocumentsTab({
                       : values;
 
                   // Helper function to format the display date contextually matching "10 July, 2026"
-                  const formatDateDisplay = (dateString: string) => {
+                  const formatDateDisplay = (
+                    dateString: string | undefined,
+                  ) => {
                     if (!dateString) return "Pick a date";
 
                     // Check if the saved value is already formatted as "10 July, 2026"
@@ -643,12 +645,11 @@ export function DocumentsTab({
                                     mode="single"
                                     selected={
                                       values[variable]
-                                        ? // If it's already customized format, parse it back to date via date-fns or fallback to native
-                                          /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(
-                                            values[variable],
+                                        ? /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(
+                                            String(values[variable]),
                                           )
-                                          ? new Date(values[variable])
-                                          : parseISO(values[variable])
+                                          ? new Date(String(values[variable]))
+                                          : parseISO(String(values[variable]))
                                         : undefined
                                     }
                                     onSelect={(date) =>
@@ -660,7 +661,7 @@ export function DocumentsTab({
                                           : "",
                                       }))
                                     }
-                                    initialFocus
+                                    autoFocus
                                   />
                                 </PopoverContent>
                               </Popover>
