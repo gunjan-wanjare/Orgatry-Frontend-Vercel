@@ -570,27 +570,27 @@ export function DocumentsTab({
                 {(() => {
                   const formulas = selectedTemplate?.formulas ?? {};
                   const computedNames = getComputedVariableNames(formulas);
+
                   const inputVars =
                     selectedTemplate?.variables.filter(
                       (v) => !computedNames.has(v),
                     ) ?? [];
+
                   const computedVars =
                     selectedTemplate?.variables.filter((v) =>
                       computedNames.has(v),
                     ) ?? [];
+
                   const computedValues =
                     Object.keys(formulas).length > 0
                       ? applyFormulas(values, formulas)
                       : values;
 
-                  // Helper function to format the display date contextually matching "10 July, 2026"
+                  // Helper function to format the display date contextually
                   const formatDateDisplay = (
                     dateString: string | undefined,
                   ) => {
                     if (!dateString) return "Pick a date";
-
-                    // Check if the saved value is already formatted as "10 July, 2026"
-                    // valid parsed format matching: one or two digits, space, word characters, comma, space, 4 digits
                     const alreadyFormatted =
                       /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(dateString);
                     if (alreadyFormatted) return dateString;
@@ -608,11 +608,79 @@ export function DocumentsTab({
                         const isDateField = variable
                           ?.toLowerCase()
                           .includes("_date");
+                        const isPeriodField = variable
+                          ?.toLowerCase()
+                          .includes("period");
+
                         const formattedLabel = variable
                           ? variable
                               .replaceAll("_", " ")
                               .replace(/^\w/, (c) => c.toUpperCase())
                           : "";
+
+                        // --- Period Calculation Parsing Logic ---
+                        const currentValue = values[variable]
+                          ? String(values[variable]).trim()
+                          : "";
+
+                        // Regular expression captures digits and text separately
+                        const match = currentValue.match(
+                          /^(\d+)?\s*([a-zA-Z]+)$/,
+                        );
+                        const currentNum = match && match[1] ? match[1] : "";
+                        const rawUnit =
+                          match && match[2]
+                            ? match[2].toLowerCase()
+                            : currentValue.toLowerCase();
+
+                        // Standardize the singular/plural base strings safely
+                        const baseUnit = rawUnit.startsWith("day")
+                          ? "days"
+                          : rawUnit.startsWith("week")
+                            ? "weeks"
+                            : rawUnit.startsWith("month")
+                              ? "months"
+                              : rawUnit.startsWith("year")
+                                ? "years"
+                                : "";
+
+                        let maxCount = 0;
+                        if (baseUnit === "days") maxCount = 90;
+                        if (baseUnit === "weeks") maxCount = 12;
+                        if (baseUnit === "months") maxCount = 12;
+                        if (baseUnit === "years") maxCount = 4;
+
+                        const handlePeriodChange = (
+                          newNum: string,
+                          newUnit: string,
+                        ) => {
+                          if (!newUnit) return;
+
+                          // If a user swaps the unit dropdown first but hasn't chosen a digit,
+                          // safe-fallback to '1' to enforce a continuous, valid string format ("1 month")
+                          const targetNum = newNum || currentNum || "1";
+                          const numericValue = parseInt(targetNum, 10);
+
+                          if (isNaN(numericValue)) return;
+
+                          // Apply clean plural/singular rules to the unit suffix string
+                          const cleanedUnit =
+                            numericValue === 1
+                              ? newUnit.replace(/s$/, "")
+                              : newUnit;
+                          const finalizedStringValue =
+                            `${numericValue} ${cleanedUnit}`.trim();
+
+                          setValues((prev) => ({
+                            ...prev,
+                            [variable]: finalizedStringValue,
+                          }));
+                        };
+                        // ----------------------------------------
+
+                        // Reusable select layout classes matching standard shadcn/ui Input
+                        const selectClass =
+                          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%2E%3E%3C%2Fsvg%3E')] bg-[length:14px] bg-[right_12px_center] bg-no-repeat text-foreground pr-8";
 
                         return (
                           <label key={variable} className="grid gap-1 text-sm">
@@ -655,7 +723,6 @@ export function DocumentsTab({
                                     onSelect={(date) =>
                                       setValues((prev) => ({
                                         ...prev,
-                                        // This writes "10 July, 2026" directly into your global offer letter data state structure
                                         [variable]: date
                                           ? format(date, "d MMMM, yyyy")
                                           : "",
@@ -665,6 +732,86 @@ export function DocumentsTab({
                                   />
                                 </PopoverContent>
                               </Popover>
+                            ) : isPeriodField ? (
+                              <div className="flex gap-2">
+                                <select
+                                  className={selectClass}
+                                  value={baseUnit}
+                                  onChange={(e) =>
+                                    handlePeriodChange(
+                                      currentNum,
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  <option
+                                    value=""
+                                    disabled
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Select Unit
+                                  </option>
+                                  <option
+                                    value="days"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Days
+                                  </option>
+                                  <option
+                                    value="weeks"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Weeks
+                                  </option>
+                                  <option
+                                    value="months"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Months
+                                  </option>
+                                  <option
+                                    value="years"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Years
+                                  </option>
+                                </select>
+
+                                <select
+                                  className={selectClass}
+                                  value={currentNum}
+                                  disabled={!baseUnit}
+                                  onChange={(e) =>
+                                    handlePeriodChange(e.target.value, baseUnit)
+                                  }
+                                >
+                                  <option
+                                    value=""
+                                    disabled
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Select Number
+                                  </option>
+                                  {Array.from(
+                                    { length: maxCount },
+                                    (_, i) => i + 1,
+                                  ).map((num) => {
+                                    const standardLabel =
+                                      num === 1
+                                        ? baseUnit.replace(/s$/, "")
+                                        : baseUnit;
+                                    return (
+                                      <option
+                                        key={num}
+                                        value={num}
+                                        className="bg-neutral-900 text-white"
+                                      >
+                                        {num} {standardLabel}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
                             ) : (
                               <Input
                                 value={values[variable] ?? ""}
@@ -754,7 +901,7 @@ export function DocumentsTab({
                         width: A4_WIDTH_PX,
                       }}
                       title="Document preview"
-                      sandbox="allow-same-origin"
+                      sandbox="allow-same-origin allow-scripts" // Updated here
                     />
                   </div>
                 ) : (
@@ -780,7 +927,7 @@ export function DocumentsTab({
                     width: A4_WIDTH_PX,
                   }}
                   title="Generated document"
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-scripts" // Updated here
                 />
               </div>
             </div>
