@@ -127,7 +127,7 @@ export function offerStatusBadgeVariant(status: string): 'violet' | 'success' | 
 }
 
 function fmtINR(n: number): string {
-  return '₹ ' + Number(n).toLocaleString('en-IN', {
+  return Number(n).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
