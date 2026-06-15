@@ -1,3 +1,9 @@
+export type EmployeeLicense = {
+  id?: string;
+  licenseName: string;
+  licenseKey: string;
+};
+
 export type Employee = {
   id: string;
   employeeId: string;
@@ -8,6 +14,7 @@ export type Employee = {
   designation: string;
   status: string;
   joiningDate?: string;
+  softwareLicensesAssigned?: EmployeeLicense[];
 };
 
 export type JobPosting = {
