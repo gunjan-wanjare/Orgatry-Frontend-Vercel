@@ -3,6 +3,7 @@ import { resourceApi } from './resource.api';
 import { httpClient } from './http-client';
 import type { ApiResponse } from '@/types/api';
 import type { EmployeeFormValues } from '@/schemas/employee.schemas';
+import type { EmployeeLicense } from '@/types/domain';
 
 export const employeeApi = {
   create(payload: EmployeeFormValues) {
@@ -42,6 +43,14 @@ export const employeeApi = {
     const response = await httpClient.patch<ApiResponse<Record<string, unknown>>>(
       endpoints.employeeProfileEmployment(id),
       payload,
+    );
+    return response.data.data;
+  },
+
+  async updateLicenses(id: string, licenses: EmployeeLicense[]) {
+    const response = await httpClient.patch<ApiResponse<Record<string, unknown>>>(
+      endpoints.employeeProfile(id),
+      { softwareLicensesAssigned: licenses },
     );
     return response.data.data;
   },

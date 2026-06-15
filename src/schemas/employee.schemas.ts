@@ -48,6 +48,15 @@ export const employeeFormSchema = z.object({
     .optional()
     .transform((val) => (val === "" ? undefined : val))
     .pipe(z.string().uuid().optional()),
+  softwareLicensesAssigned: z
+    .array(
+      z.object({
+        licenseName: z.string().trim().min(1),
+        licenseKey: z.string().trim().min(1),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
