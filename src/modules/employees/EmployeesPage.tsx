@@ -1,7 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Edit3, Eye, Loader2, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -76,9 +76,14 @@ export function EmployeesPage() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: EmployeeFormValues }) =>
+  const updateFn = useCallback(
+    ({ id, values }: { id: string; values: EmployeeFormValues }) =>
       employeeApi.update(id, values),
+    [],
+  );
+
+  const updateMutation = useMutation({
+    mutationFn: updateFn,
     onSuccess: () => {
       toast.success("Employee updated");
       setDialogOpen(false);
