@@ -10,6 +10,8 @@ import {
   LogIn,
   LogOut,
   Search,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageTransition } from "@/components/animations/PageTransition";
@@ -115,6 +117,39 @@ type EmployeeAttendanceResponse = PaginatedResponse<AttendanceRecord> & {
 
 type DepartmentsResponse = {
   departments: string[];
+};
+
+type RegularizationRequest = {
+  id: string;
+  employeeId: string;
+  approverId?: string | null;
+  employee?: {
+    id: string;
+    employeeId: string;
+    firstName: string;
+    lastName: string;
+    department: string;
+    designation: string;
+  };
+  approver?: {
+    id: string;
+    employeeId: string;
+    firstName: string;
+    lastName: string;
+  };
+  attendanceDate: string;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  reason: string;
+  remarks?: string | null;
+  metadata?: {
+    employeeCode?: string;
+    employeeName?: string;
+    issueType?: string;
+    requestedAt?: string;
+  } | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
 };
 
 const formatLocalDate = (value: string) =>
@@ -279,7 +314,16 @@ export function AttendancePage() {
     "attendance:regularize:self",
   ]);
 
-  const [activeTab, setActiveTab] = useState<"my" | "employee">("my");
+  const canApproveRegularizations = canAny([
+    permissions.attendanceApproveTeam,
+    permissions.attendanceApproveDepartment,
+    permissions.attendanceApproveAll,
+    "attendance.approve.team",
+    "attendance.approve.department",
+    "attendance.approve.all",
+  ]);
+
+  const [activeTab, setActiveTab] = useState<"my" | "employee" | "approvals">("my");
   const [employeePage, setEmployeePage] = useState(1);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeeStatus, setEmployeeStatus] = useState<AttendanceStatusFilter>("ALL");
@@ -291,6 +335,10 @@ export function AttendancePage() {
   const [regularizeReason, setRegularizeReason] = useState("");
   const [regularizeCheckIn, setRegularizeCheckIn] = useState("");
   const [regularizeCheckOut, setRegularizeCheckOut] = useState("");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
+  const [rejectRemarks, setRejectRemarks] = useState("");
   const [checkInLocked, setCheckInLocked] = useState(false);
   const [elapsed, setElapsed] = useState<number>(0);
   const debouncedEmployeeSearch = useDebounce(employeeSearch, 350);
@@ -299,7 +347,10 @@ export function AttendancePage() {
     if (!canAccessEmployeeAttendance && activeTab === "employee") {
       setActiveTab("my");
     }
-  }, [activeTab, canAccessEmployeeAttendance]);
+    if (!canApproveRegularizations && activeTab === "approvals") {
+      setActiveTab("my");
+    }
+  }, [activeTab, canAccessEmployeeAttendance, canApproveRegularizations]);
 
   useEffect(() => {
     setEmployeePage(1);
@@ -387,6 +438,53 @@ export function AttendancePage() {
     },
     enabled: canAccessEmployeeAttendance && !permissionsLoading && activeTab === "employee",
     staleTime: 60_000,
+  });
+
+  const regularizationsQuery = useQuery({
+    queryKey: ["attendance-regularizations"],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("type", "REGULARIZATION");
+      const res = await httpClient.get<ApiResponse<{ items: RegularizationRequest[] }>>(
+        `${endpoints.attendanceRegularizations}?${params.toString()}`,
+      );
+      return res.data.data?.items ?? [];
+    },
+    enabled: canApproveRegularizations && !permissionsLoading,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setApprovingId(id);
+      const res = await httpClient.patch<ApiResponse<unknown>>(endpoints.attendanceRegularizationById(id), { status: "APPROVED" });
+      return res.data.data;
+    },
+    onSuccess: () => {
+      toast.success("Regularization approved");
+      setApprovingId(null);
+      void queryClient.invalidateQueries({ queryKey: ["attendance-regularizations"] });
+    },
+    onError: (error) => {
+      setApprovingId(null);
+      toast.error(parseApiError(error).message);
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, remarks }: { id: string; remarks: string }) => {
+      const res = await httpClient.patch<ApiResponse<unknown>>(endpoints.attendanceRegularizationById(id), { status: "REJECTED", remarks });
+      return res.data.data;
+    },
+    onSuccess: () => {
+      toast.success("Regularization rejected");
+      setRejectOpen(false);
+      setRejectRequestId(null);
+      setRejectRemarks("");
+      void queryClient.invalidateQueries({ queryKey: ["attendance-regularizations"] });
+    },
+    onError: (error) => toast.error(parseApiError(error).message),
   });
 
   const today = todayQuery.data;
@@ -548,11 +646,14 @@ export function AttendancePage() {
   return (
     <PageTransition>
       <div className="space-y-6">
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "my" | "employee")}> 
-          <TabsList className={`grid w-full ${canAccessEmployeeAttendance ? "grid-cols-2" : "grid-cols-1"}`}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "my" | "employee" | "approvals")}> 
+          <TabsList className={`grid w-full ${canAccessEmployeeAttendance && canApproveRegularizations ? "grid-cols-3" : canAccessEmployeeAttendance || canApproveRegularizations ? "grid-cols-2" : "grid-cols-1"}`}>
             <TabsTrigger value="my">My Attendance</TabsTrigger>
             {canAccessEmployeeAttendance ? (
               <TabsTrigger value="employee">Employee Attendance</TabsTrigger>
+            ) : null}
+            {canApproveRegularizations ? (
+              <TabsTrigger value="approvals">Approvals</TabsTrigger>
             ) : null}
           </TabsList>
 
@@ -891,6 +992,129 @@ export function AttendancePage() {
                   </div>
                 ) : null}
               </SectionCard>
+          </TabsContent>
+          ) : null}
+
+          {canApproveRegularizations ? (
+          <TabsContent value="approvals" className="space-y-4">
+            <SectionCard
+              title="Regularization Approvals"
+              description="Pending attendance regularization requests awaiting your review"
+            >
+              {regularizationsQuery.isLoading ? (
+                <div className="mt-4 space-y-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="h-14 animate-pulse rounded bg-white/[0.04]" />
+                  ))}
+                </div>
+              ) : regularizationsQuery.isError ? (
+                <div className="mt-4 rounded-xl border border-dashed border-border p-6 text-center">
+                  <p className="text-sm text-muted-foreground">{parseApiError(regularizationsQuery.error).message}</p>
+                  <Button className="mt-3" variant="outline" onClick={() => void regularizationsQuery.refetch()}>Retry</Button>
+                </div>
+              ) : !regularizationsQuery.data?.length ? (
+                <div className="mt-4 rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                  No pending regularization requests
+                </div>
+              ) : (
+                <div className="mt-4 overflow-hidden rounded-xl border border-border/50">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border/50 bg-white/[0.03] text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Employee</th>
+                        <th className="px-4 py-3 font-medium">Date</th>
+                        <th className="px-4 py-3 font-medium">Reason</th>
+                        <th className="px-4 py-3 font-medium">Check-in</th>
+                        <th className="px-4 py-3 font-medium">Check-out</th>
+                        <th className="px-4 py-3 font-medium">Submitted</th>
+                        <th className="px-4 py-3 text-right font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {regularizationsQuery.data
+                        .filter((req) => req.status === "PENDING")
+                        .map((req) => {
+                          const empName = req.employee
+                            ? `${req.employee.firstName} ${req.employee.lastName}`.trim()
+                            : "-";
+                          return (
+                            <tr key={req.id} className="border-b border-border/40 last:border-b-0">
+                              <td className="px-4 py-3">
+                                <div className="font-medium">{empName}</div>
+                                {req.employee && (
+                                  <div className="text-xs text-muted-foreground">{req.employee.employeeId}</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">{formatLocalDate(req.attendanceDate)}</td>
+                              <td className="max-w-xs truncate px-4 py-3">{req.reason}</td>
+                              <td className="px-4 py-3">{formatLocalTime(req.checkInTime)}</td>
+                              <td className="px-4 py-3">{formatLocalTime(req.checkOutTime)}</td>
+                              <td className="px-4 py-3 text-xs text-muted-foreground">{formatLocalDate(req.createdAt)}</td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                    disabled={approvingId === req.id}
+                                    onClick={() => approveMutation.mutate(req.id)}
+                                  >
+                                    {approvingId === req.id ? <Loader2 className="size-3 animate-spin" /> : <ThumbsUp className="size-3" />}
+                                    <span className="ml-1.5">Approve</span>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                                    disabled={rejectMutation.isPending && rejectRequestId === req.id}
+                                    onClick={() => { setRejectRequestId(req.id); setRejectRemarks(""); setRejectOpen(true); }}
+                                  >
+                                    <ThumbsDown className="size-3" />
+                                    <span className="ml-1.5">Reject</span>
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </SectionCard>
+
+            <Dialog open={rejectOpen} onOpenChange={(next) => { if (!next) { setRejectOpen(false); setRejectRequestId(null); setRejectRemarks(""); } }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reject regularization</DialogTitle>
+                  <DialogDescription>Provide a reason for rejecting this regularization request.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Remarks</label>
+                    <Textarea
+                      value={rejectRemarks}
+                      onChange={(event) => setRejectRemarks(event.target.value)}
+                      placeholder="Reason for rejection"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setRejectOpen(false); setRejectRequestId(null); setRejectRemarks(""); }}>Cancel</Button>
+                  <Button
+                    variant="destructive"
+                    disabled={rejectMutation.isPending || !rejectRemarks.trim() || !rejectRequestId}
+                    onClick={() => {
+                      if (rejectRequestId) rejectMutation.mutate({ id: rejectRequestId, remarks: rejectRemarks.trim() });
+                    }}
+                  >
+                    {rejectMutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                    Reject
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
           ) : null}
         </Tabs>

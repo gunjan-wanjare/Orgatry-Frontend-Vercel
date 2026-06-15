@@ -37,7 +37,7 @@ export const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permissions: [], keywords: ['home', 'analytics', 'kpi'] },
   { label: 'Employee Management', path: '/employees', icon: UsersRound, permissions: [permissions.employeeRead, permissions.employeeWrite, permissions.employeeUserManage], keywords: ['employee', 'profile', 'employees', 'accounts'] },
   { label: 'Attendance', path: '/attendance', icon: CalendarCheck, permissions: [], keywords: ['check in', 'geo', 'calendar'] },
-  { label: 'Leaves', path: '/leaves', icon: ClipboardCheck, permissions: [], keywords: ['approval', 'balance', 'calendar'] },
+  { label: 'Leaves', path: '/leaves', icon: ClipboardCheck, permissions: [permissions.leaveRead, permissions.leaveWrite, permissions.leaveApprove], keywords: ['approval', 'balance', 'calendar'] },
   { label: 'Recruitment', path: '/recruitment', icon: BriefcaseBusiness, permissions: [permissions.jobRead, permissions.applicationRead], keywords: ['ats', 'jobs', 'candidates'] },
   { label: 'Interviews', path: '/interviews', icon: FileClock, permissions: [permissions.interviewManage], keywords: ['schedule', 'feedback'] },
   { label: 'Pre-Onboarding', path: '/pre-onboarding', icon: UserCheck, permissions: [permissions.preOnboardingRead, permissions.preOnboardingVerify], keywords: ['candidate', 'verification', 'documents', 'portal'] },
