@@ -69,6 +69,7 @@ function getDefaultValues(): EmployeeFormValues {
     employmentType: 'FULL_TIME',
     status: 'ACTIVE',
     reportingManagerId: undefined,
+    softwareLicensesAssigned: [],
   };
 }
 
@@ -199,6 +200,7 @@ export function EmployeeFormDialog({
           : getDefaultValues().joiningDate,
         reportingManagerId: employee.reportingManagerId ?? undefined,
         hrSpocId: employee.hrSpocId ?? undefined,
+        softwareLicensesAssigned: employee.softwareLicensesAssigned ?? [],
       });
       return;
     }
