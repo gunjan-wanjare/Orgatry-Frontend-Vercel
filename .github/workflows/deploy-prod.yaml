@@ -170,7 +170,7 @@ jobs:
           rm /tmp/secrets.json &&
           chmod 600 .env &&
           echo 'Starting deployment...' &&
-          docker system prune -f &&
+          docker image prune -f &&
           docker-compose pull &&
           docker-compose down &&
           docker-compose up -d --force-recreate &&
