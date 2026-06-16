@@ -54,7 +54,7 @@ import {
   OFFER_STATUS_LABELS,
   stripScriptsForPreview,
 } from "./offer-letter.utils";
-import { companyRoles } from "../../utils/roles.config.ts";
+import { companyRoles, type RoleConfig } from "../../utils/roles.config";
 
 type Template = {
   id: string;
@@ -610,7 +610,7 @@ export function DocumentsTab({
 
                   // --- Fuzzy Matching Designation Logic ---
                   // Maps loose inputs like "UI/UX lead" -> "Senior UI/UX Designer" config
-                  const findBestMatchingRole = (typedTitle: string) => {
+                  const findBestMatchingRole = (typedTitle: string): RoleConfig | null => {
                     if (!typedTitle) return null;
 
                     const cleanInput = typedTitle.toLowerCase().trim();
@@ -707,7 +707,7 @@ export function DocumentsTab({
                     }
 
                     // 3. Score and find the best config fit from companyRoles config array
-                    let bestMatch = null;
+                    let bestMatch: RoleConfig | null = null;
                     let highestScore = 0;
 
                     companyRoles.forEach((role) => {
@@ -746,13 +746,13 @@ export function DocumentsTab({
                     const matchedRoleConfig = findBestMatchingRole(typedValue);
 
                     setRoleValues((prev) => {
-                      const updated = { ...prev, designation: typedValue };
+                      const updated: Record<string, string> = {
+                        ...prev,
+                        designation: typedValue,
+                      };
 
                       // If a smart fuzzy match is resolved, inject its mapped responsibilities text string safely
-                      if (
-                        matchedRoleConfig &&
-                        matchedRoleConfig.responsibilities
-                      ) {
+                      if (matchedRoleConfig?.responsibilities.length) {
                         const rolesTextareaKey = Object.keys(prev).find((key) =>
                           key.toLowerCase().includes("role"),
                         );
