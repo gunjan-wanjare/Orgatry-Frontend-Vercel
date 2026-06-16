@@ -1,6 +1,6 @@
 // src/modules/settings/SettingsPage.tsx - Updated version
 import { addMonths, eachDayOfInterval, endOfMonth, format, getDay, isSameDay, startOfMonth, subMonths } from 'date-fns';
-import { Building2, CalendarDays, ChevronLeft, ChevronRight, Clock, Edit3, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { Building2, Briefcase, CalendarDays, ChevronLeft, ChevronRight, Clock, Edit3, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -598,144 +598,170 @@ function HolidayCalendarManager() {
   );
 }
 
-function DepartmentsManager() {
+type ConfigStringListSectionProps = {
+  configKey: 'hr.departments' | 'hr.designations';
+  title: string;
+  description: string;
+  itemLabel: string;
+  emptyMessage: string;
+  addButtonLabel: string;
+  dialogTitle: string;
+  dialogDescription: string;
+  inputLabel: string;
+  inputPlaceholder: string;
+  emptyIcon: typeof Building2;
+};
+
+function ConfigStringListSection({
+  configKey,
+  title,
+  description,
+  itemLabel,
+  emptyMessage,
+  addButtonLabel,
+  dialogTitle,
+  dialogDescription,
+  inputLabel,
+  inputPlaceholder,
+  emptyIcon: EmptyIcon,
+}: ConfigStringListSectionProps) {
   const queryClient = useQueryClient();
-  const [deptDialogOpen, setDeptDialogOpen] = useState(false);
-  const [newDeptName, setNewDeptName] = useState('');
-  const [editingDept, setEditingDept] = useState<string | null>(null);
-  const [editDeptName, setEditDeptName] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editItemName, setEditItemName] = useState('');
 
   const {
-    data: departmentConfig,
-    isLoading: deptsLoading,
-    refetch: refetchDepts,
+    data: configData,
+    isLoading,
+    refetch,
   } = useQuery({
-    queryKey: ['config', 'hr.departments'],
+    queryKey: ['config', configKey],
     queryFn: async () => {
       const response = await httpClient.get<ApiResponse<{ key: string; value: string[] }>>(
-        endpoints.config.byKey('hr.departments'),
+        endpoints.config.byKey(configKey),
       );
       return response.data.data;
     },
     staleTime: 30_000,
   });
 
-  const departments: string[] = Array.isArray(departmentConfig?.value) ? departmentConfig.value : [];
+  const items: string[] = Array.isArray(configData?.value) ? configData.value : [];
 
-  const saveDeptsMutation = useMutation({
-    mutationFn: async (updatedDepts: string[]) => {
-      const response = await httpClient.put(endpoints.config.byKey('hr.departments'), {
-        value: updatedDepts,
+  const saveMutation = useMutation({
+    mutationFn: async (updatedItems: string[]) => {
+      const response = await httpClient.put(endpoints.config.byKey(configKey), {
+        value: updatedItems,
       });
       return response.data;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['config', 'hr.departments'] });
-      void refetchDepts();
-      toast.success('Departments updated');
+      void queryClient.invalidateQueries({ queryKey: ['config', configKey] });
+      void refetch();
+      toast.success(`${title} updated`);
+      setDialogOpen(false);
+      setNewItemName('');
     },
     onError: (error: Error) => {
-      toast.error(error.message ?? 'Failed to update departments');
+      toast.error(error.message ?? `Failed to update ${title.toLowerCase()}`);
     },
   });
 
-  const handleAddDepartment = () => {
-    const trimmed = newDeptName.trim();
+  const handleAddItem = () => {
+    const trimmed = newItemName.trim();
     if (!trimmed) {
-      toast.error('Department name cannot be empty');
+      toast.error(`${itemLabel} name cannot be empty`);
       return;
     }
-    if (departments.includes(trimmed)) {
-      toast.error('Department already exists');
+    if (items.includes(trimmed)) {
+      toast.error(`${itemLabel} already exists`);
       return;
     }
 
-    saveDeptsMutation.mutate([...departments, trimmed]);
-    setNewDeptName('');
-    setDeptDialogOpen(false);
+    saveMutation.mutate([...items, trimmed]);
   };
 
-  const handleDeleteDepartment = (deptName: string) => {
-    if (!window.confirm(`Delete department "${deptName}"? This cannot be undone.`)) {
+  const handleDeleteItem = (itemName: string) => {
+    if (!window.confirm(`Delete ${itemLabel.toLowerCase()} "${itemName}"? This cannot be undone.`)) {
       return;
     }
 
-    saveDeptsMutation.mutate(departments.filter((department) => department !== deptName));
+    saveMutation.mutate(items.filter((item) => item !== itemName));
   };
 
-  const handleEditDepartment = () => {
-    const trimmed = editDeptName.trim();
-    if (!trimmed || !editingDept) {
+  const handleEditItem = () => {
+    const trimmed = editItemName.trim();
+    if (!trimmed || !editingItem) {
       return;
     }
 
-    if (departments.includes(trimmed) && trimmed !== editingDept) {
-      toast.error('Department name already exists');
+    if (items.includes(trimmed) && trimmed !== editingItem) {
+      toast.error(`${itemLabel} name already exists`);
       return;
     }
 
-    saveDeptsMutation.mutate(departments.map((department) => (department === editingDept ? trimmed : department)));
-    setEditingDept(null);
-    setEditDeptName('');
+    saveMutation.mutate(items.map((item) => (item === editingItem ? trimmed : item)));
+    setEditingItem(null);
+    setEditItemName('');
   };
 
   return (
     <SectionCard
-      title="Departments & Designations"
-      description="Manage master department list used across employee workflows."
+      title={title}
+      description={description}
       actions={
         <Button
           size="sm"
           onClick={() => {
-            setNewDeptName('');
-            setDeptDialogOpen(true);
+            setNewItemName('');
+            setDialogOpen(true);
           }}
         >
           <Plus className="mr-2 size-4" />
-          Add Department
+          {addButtonLabel}
         </Button>
       }
     >
-      {deptsLoading ? (
+      {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((index) => (
             <div key={index} className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />
           ))}
         </div>
-      ) : departments.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
-          <Building2 className="mx-auto mb-3 size-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No departments yet. Click "Add Department" to create one.</p>
+          <EmptyIcon className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {departments.map((department) => (
-            <div key={department} className="rounded-xl border border-border bg-white/[0.03] p-4">
+          {items.map((item) => (
+            <div key={item} className="rounded-xl border border-border bg-white/[0.03] p-4">
               <div className="flex items-start justify-between gap-2">
-                {editingDept === department ? (
+                {editingItem === item ? (
                   <div className="flex flex-1 items-center gap-2">
                     <Input
-                      value={editDeptName}
-                      onChange={(event) => setEditDeptName(event.target.value)}
+                      value={editItemName}
+                      onChange={(event) => setEditItemName(event.target.value)}
                       className="h-8 text-sm"
                       autoFocus
                       onKeyDown={(event) => {
-                        if (event.key === 'Enter') handleEditDepartment();
-                        if (event.key === 'Escape') setEditingDept(null);
+                        if (event.key === 'Enter') handleEditItem();
+                        if (event.key === 'Escape') setEditingItem(null);
                       }}
                     />
-                    <Button size="sm" onClick={handleEditDepartment} disabled={saveDeptsMutation.isPending}>
+                    <Button size="sm" onClick={handleEditItem} disabled={saveMutation.isPending}>
                       Save
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingDept(null)}>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingItem(null)}>
                       Cancel
                     </Button>
                   </div>
                 ) : (
                   <>
                     <div className="flex-1">
-                      <p className="font-medium text-foreground">{department}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">Department</p>
+                      <p className="font-medium text-foreground">{item}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{itemLabel}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <Button
@@ -743,8 +769,8 @@ function DepartmentsManager() {
                         size="sm"
                         className="h-7 w-7 p-0"
                         onClick={() => {
-                          setEditingDept(department);
-                          setEditDeptName(department);
+                          setEditingItem(item);
+                          setEditItemName(item);
                         }}
                       >
                         <Edit3 className="size-3.5" />
@@ -753,8 +779,8 @@ function DepartmentsManager() {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
-                        onClick={() => handleDeleteDepartment(department)}
-                        disabled={saveDeptsMutation.isPending}
+                        onClick={() => handleDeleteItem(item)}
+                        disabled={saveMutation.isPending}
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
@@ -767,24 +793,24 @@ function DepartmentsManager() {
         </div>
       )}
 
-      <Dialog open={deptDialogOpen} onOpenChange={setDeptDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Department</DialogTitle>
-            <DialogDescription>Enter a name for the new department.</DialogDescription>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+            <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="dept-name">Department Name *</Label>
+              <Label htmlFor={`${configKey}-name`}>{inputLabel}</Label>
               <Input
-                id="dept-name"
-                placeholder="e.g., Engineering"
-                value={newDeptName}
-                onChange={(event) => setNewDeptName(event.target.value)}
+                id={`${configKey}-name`}
+                placeholder={inputPlaceholder}
+                value={newItemName}
+                onChange={(event) => setNewItemName(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault();
-                    handleAddDepartment();
+                    handleAddItem();
                   }
                 }}
                 autoFocus
@@ -795,29 +821,62 @@ function DepartmentsManager() {
             <Button
               variant="outline"
               onClick={() => {
-                setDeptDialogOpen(false);
-                setNewDeptName('');
+                setDialogOpen(false);
+                setNewItemName('');
               }}
             >
               Cancel
             </Button>
             <Button
-              onClick={handleAddDepartment}
-              disabled={!newDeptName.trim() || saveDeptsMutation.isPending}
+              onClick={handleAddItem}
+              disabled={!newItemName.trim() || saveMutation.isPending}
             >
-              {saveDeptsMutation.isPending ? (
+              {saveMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Adding...
                 </>
               ) : (
-                'Add Department'
+                addButtonLabel
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </SectionCard>
+  );
+}
+
+function DepartmentsAndDesignationsManager() {
+  return (
+    <div className="space-y-6">
+      <ConfigStringListSection
+        configKey="hr.departments"
+        title="Departments"
+        description="Manage the master department list used across employee workflows."
+        itemLabel="Department"
+        emptyMessage='No departments yet. Click "Add Department" to create one.'
+        addButtonLabel="Add Department"
+        dialogTitle="Add Department"
+        dialogDescription="Enter a name for the new department."
+        inputLabel="Department Name *"
+        inputPlaceholder="e.g., Engineering"
+        emptyIcon={Building2}
+      />
+      <ConfigStringListSection
+        configKey="hr.designations"
+        title="Designations"
+        description="Manage job titles and designations available when creating or editing employees."
+        itemLabel="Designation"
+        emptyMessage='No designations yet. Click "Add Designation" to create one.'
+        addButtonLabel="Add Designation"
+        dialogTitle="Add Designation"
+        dialogDescription="Enter a title for the new designation."
+        inputLabel="Designation Name *"
+        inputPlaceholder="e.g., Senior Software Engineer"
+        emptyIcon={Briefcase}
+      />
+    </div>
   );
 }
 
@@ -979,7 +1038,7 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
   const { roles } = usePermissions();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
-  const [activeTab, setActiveTab] = useState('attendance');
+  const [activeTab, setActiveTab] = useState('departments-designations');
   const canManageDepartmentsDesignations = roles.includes('SUPER_ADMIN');
   const canManageHolidayCalendar = roles.includes('SUPER_ADMIN') || roles.includes('PORTAL_ADMIN');
 
@@ -1072,10 +1131,10 @@ export function SettingsPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="leave">Leave Types</TabsTrigger>
+            {/* <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="leave">Leave Types</TabsTrigger> */}
             {canManageDepartmentsDesignations ? <TabsTrigger value="departments-designations">Departments & Designations</TabsTrigger> : null}
-            {canManageHolidayCalendar ? <TabsTrigger value="holiday-calendar">Holiday Calendar</TabsTrigger> : null}
+            {/* {canManageHolidayCalendar ? <TabsTrigger value="holiday-calendar">Holiday Calendar</TabsTrigger> : null} */}
           </TabsList>
 
           <TabsContent value="attendance" className="mt-6 space-y-6">
@@ -1145,7 +1204,7 @@ export function SettingsPage() {
 
           {canManageDepartmentsDesignations ? (
             <TabsContent value="departments-designations" className="mt-6">
-              <DepartmentsManager />
+              <DepartmentsAndDesignationsManager />
             </TabsContent>
           ) : null}
 
