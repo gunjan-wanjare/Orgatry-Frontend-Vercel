@@ -19,6 +19,8 @@ export const permissions = {
   leaveApprove: 'leave.approve',
   jobRead: 'job.read',
   jobWrite: 'job.write',
+  mailersDocsRead: 'mailers_docs.read',
+  mailersDocsWrite: 'mailers_docs.write',
   applicationRead: 'application.read',
   applicationWrite: 'application.write',
   interviewManage: 'interview.manage',
