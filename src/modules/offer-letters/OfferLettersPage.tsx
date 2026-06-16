@@ -54,7 +54,8 @@ import {
   OFFER_STATUS_LABELS,
   stripScriptsForPreview,
 } from "./offer-letter.utils";
-import { companyRoles, type RoleConfig } from "../../utils/roles.config";
+import { DesignationAutocomplete } from "@/modules/mailers-and-docs/DesignationAutocomplete";
+import type { DesignationTemplate } from "@/services/api/designation.api";
 
 type Template = {
   id: string;
@@ -122,11 +123,6 @@ export function DocumentsTab({
   const [mobileTab, setMobileTab] = useState<"variables" | "preview">(
     "variables",
   );
-
-  const [roleValues, setRoleValues] = useState<Record<string, string>>({
-    designation: "",
-    employee_role: "",
-  });
 
   const listQuery = useResourceQuery<OfferLetter>(
     "offer-letters",
@@ -207,6 +203,7 @@ export function DocumentsTab({
       setStep("preview");
       toast.success("Document generated");
       void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
+      void queryClient.invalidateQueries({ queryKey: ["designations"] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -589,10 +586,9 @@ export function DocumentsTab({
 
                   const computedValues =
                     Object.keys(formulas).length > 0
-                      ? applyFormulas(roleValues, formulas)
-                      : roleValues;
+                      ? applyFormulas(values, formulas)
+                      : values;
 
-                  // Helper function to format the display date contextually
                   const formatDateDisplay = (
                     dateString: string | undefined,
                   ) => {
@@ -608,161 +604,47 @@ export function DocumentsTab({
                     }
                   };
 
-                  // --- Fuzzy Matching Designation Logic ---
-                  // Maps loose inputs like "UI/UX lead" -> "Senior UI/UX Designer" config
-                  const findBestMatchingRole = (typedTitle: string): RoleConfig | null => {
-                    if (!typedTitle) return null;
+                  const designationVariableKey =
+                    inputVars.find((v) => v.toLowerCase() === "designation") ??
+                    "designation";
 
-                    const cleanInput = typedTitle.toLowerCase().trim();
+                  const applyDesignationTemplate = (
+                    template: DesignationTemplate,
+                    typedValue: string,
+                  ) => {
+                    setValues((prev) => {
+                      const updated: Record<string, string> = {
+                        ...prev,
+                        [designationVariableKey]: typedValue,
+                      };
 
-                    // 1. Identify Core Track Keyword Matches (Expanded with your 20 new roles)
-                    let trackKeywords: string[] = [];
-                    if (
-                      cleanInput.includes("ui") ||
-                      cleanInput.includes("ux") ||
-                      cleanInput.includes("design")
-                    ) {
-                      trackKeywords = ["ui", "ux", "designer"];
-                    } else if (
-                      cleanInput.includes("qa") ||
-                      cleanInput.includes("test") ||
-                      cleanInput.includes("quality")
-                    ) {
-                      trackKeywords = ["qa", "quality", "assurance"];
-                    } else if (
-                      cleanInput.includes("project") ||
-                      cleanInput.includes("product")
-                    ) {
-                      trackKeywords = ["project", "product", "manager"];
-                    } else if (
-                      cleanInput.includes("devops") ||
-                      cleanInput.includes("infrastructure") ||
-                      cleanInput.includes("cloud")
-                    ) {
-                      trackKeywords = ["devops", "infrastructure"];
-                    } else if (
-                      cleanInput.includes("marketing") ||
-                      cleanInput.includes("seo") ||
-                      cleanInput.includes("brand")
-                    ) {
-                      trackKeywords = ["marketing", "specialist", "associate"];
-                    } else if (
-                      cleanInput.includes("sales") ||
-                      cleanInput.includes("account executive")
-                    ) {
-                      trackKeywords = ["sales", "account", "executive"];
-                    } else if (
-                      cleanInput.includes("bde") ||
-                      cleanInput.includes("business development")
-                    ) {
-                      trackKeywords = ["business", "development", "executive"];
-                    } else if (
-                      cleanInput.includes("hr") ||
-                      cleanInput.includes("human") ||
-                      cleanInput.includes("talent")
-                    ) {
-                      trackKeywords = [
-                        "hr",
-                        "human",
-                        "resources",
-                        "generalist",
-                      ];
-                    } else if (
-                      cleanInput.includes("success") ||
-                      cleanInput.includes("csm")
-                    ) {
-                      trackKeywords = ["customer", "success", "manager"];
-                    } else if (
-                      cleanInput.includes("finance") ||
-                      cleanInput.includes("accounts") ||
-                      cleanInput.includes("analyst")
-                    ) {
-                      trackKeywords = ["finance", "analyst", "manager"];
-                    } else if (
-                      cleanInput.includes("engineer") ||
-                      cleanInput.includes("developer") ||
-                      cleanInput.includes("software")
-                    ) {
-                      trackKeywords = ["software", "engineer"];
-                    } else if (cleanInput.includes("manager")) {
-                      // General track-backstop rule for standalone manager updates
-                      trackKeywords = ["manager"];
-                    }
-
-                    if (trackKeywords.length === 0) return null;
-
-                    // 2. Identify Target Seniority Tier Keyword Match
-                    let isSeniorOrLead = false;
-                    if (
-                      cleanInput.includes("senior") ||
-                      cleanInput.includes("lead") ||
-                      cleanInput.includes("principal") ||
-                      cleanInput.includes("sr") ||
-                      cleanInput.includes("head") ||
-                      cleanInput.includes("director") ||
-                      (cleanInput.includes("manager") &&
-                        !cleanInput.includes("associate"))
-                    ) {
-                      isSeniorOrLead = true;
-                    }
-
-                    // 3. Score and find the best config fit from companyRoles config array
-                    let bestMatch: RoleConfig | null = null;
-                    let highestScore = 0;
-
-                    companyRoles.forEach((role) => {
-                      const roleTitleLower = role.designation.toLowerCase();
-                      let score = 0;
-
-                      // Track match score points
-                      trackKeywords.forEach((kw) => {
-                        if (roleTitleLower.includes(kw)) score += 2;
-                      });
-
-                      // Seniority tier modifier points
-                      const isRoleSeniorOrLead =
-                        roleTitleLower.includes("senior") ||
-                        roleTitleLower.includes("lead") ||
-                        roleTitleLower.includes("principal") ||
-                        roleTitleLower.includes("director") ||
-                        (roleTitleLower.includes("manager") &&
-                          !roleTitleLower.includes("associate"));
-
-                      if (isSeniorOrLead === isRoleSeniorOrLead) {
-                        score += 3; // Heavily weight matching seniority profiles
+                      const departmentKey = Object.keys(prev).find(
+                        (key) => key.toLowerCase() === "department",
+                      );
+                      if (departmentKey) {
+                        updated[departmentKey] = template.department;
                       }
 
-                      if (score > highestScore) {
-                        highestScore = score;
-                        bestMatch = role;
+                      const rolesTextareaKey = Object.keys(prev).find((key) =>
+                        key.toLowerCase().includes("role"),
+                      );
+                      if (
+                        rolesTextareaKey &&
+                        template.responsibilities.length > 0
+                      ) {
+                        updated[rolesTextareaKey] =
+                          template.responsibilities.join("\n");
                       }
+
+                      return updated;
                     });
-
-                    // Enforce a minimum safety score threshold to avoid false-positives
-                    return highestScore >= 5 ? bestMatch : null;
                   };
 
                   const handleDesignationChange = (typedValue: string) => {
-                    const matchedRoleConfig = findBestMatchingRole(typedValue);
-
-                    setRoleValues((prev) => {
-                      const updated: Record<string, string> = {
-                        ...prev,
-                        designation: typedValue,
-                      };
-
-                      // If a smart fuzzy match is resolved, inject its mapped responsibilities text string safely
-                      if (matchedRoleConfig?.responsibilities.length) {
-                        const rolesTextareaKey = Object.keys(prev).find((key) =>
-                          key.toLowerCase().includes("role"),
-                        );
-                        if (rolesTextareaKey) {
-                          updated[rolesTextareaKey] =
-                            matchedRoleConfig.responsibilities.join("\n");
-                        }
-                      }
-                      return updated;
-                    });
+                    setValues((prev) => ({
+                      ...prev,
+                      [designationVariableKey]: typedValue,
+                    }));
                   };
                   // -------------------------------------------------------------------
 
@@ -788,8 +670,8 @@ export function DocumentsTab({
                           : "";
 
                         // --- Period Calculation Parsing Logic ---
-                        const currentValue = roleValues[variable]
-                          ? String(roleValues[variable]).trim()
+                        const currentValue = values[variable]
+                          ? String(values[variable]).trim()
                           : "";
                         const match = currentValue.match(
                           /^(\d+)?\s*([a-zA-Z]+)?$/,
@@ -825,7 +707,7 @@ export function DocumentsTab({
                             ? `${newNum} ${cleanedUnit}`.trim()
                             : "";
 
-                          setRoleValues((prev) => ({
+                          setValues((prev) => ({
                             ...prev,
                             [variable]: finalizedStringValue,
                           }));
@@ -854,13 +736,13 @@ export function DocumentsTab({
                                     variant={"outline"}
                                     className={cn(
                                       "w-full justify-start text-left font-normal bg-transparent border-input",
-                                      !roleValues[variable] &&
+                                      !values[variable] &&
                                         "text-muted-foreground",
                                     )}
                                   >
                                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                                     <span>
-                                      {formatDateDisplay(roleValues[variable])}
+                                      {formatDateDisplay(values[variable])}
                                     </span>
                                   </Button>
                                 </PopoverTrigger>
@@ -871,20 +753,20 @@ export function DocumentsTab({
                                   <Calendar
                                     mode="single"
                                     selected={
-                                      roleValues[variable]
+                                      values[variable]
                                         ? /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(
-                                            String(roleValues[variable]),
+                                            String(values[variable]),
                                           )
                                           ? new Date(
-                                              String(roleValues[variable]),
+                                              String(values[variable]),
                                             )
                                           : parseISO(
-                                              String(roleValues[variable]),
+                                              String(values[variable]),
                                             )
                                         : undefined
                                     }
                                     onSelect={(date) =>
-                                      setRoleValues((prev) => ({
+                                      setValues((prev) => ({
                                         ...prev,
                                         [variable]: date
                                           ? format(date, "d MMMM, yyyy")
@@ -960,9 +842,9 @@ export function DocumentsTab({
                               <textarea
                                 rows={5}
                                 className={textareaClass}
-                                value={roleValues[variable] ?? ""}
+                                value={values[variable] ?? ""}
                                 onChange={(event) =>
-                                  setRoleValues((prev) => ({
+                                  setValues((prev) => ({
                                     ...prev,
                                     [variable]: event.target.value,
                                   }))
@@ -970,18 +852,22 @@ export function DocumentsTab({
                                 placeholder={`Enter ${variable.replace(/_/g, " ")} details…`}
                               />
                             ) : isDesignationField ? (
-                              <Input
-                                value={roleValues[variable] ?? ""}
-                                onChange={(event) =>
-                                  handleDesignationChange(event.target.value)
+                              <DesignationAutocomplete
+                                value={values[variable] ?? ""}
+                                onChange={handleDesignationChange}
+                                onSelectTemplate={(template) =>
+                                  applyDesignationTemplate(
+                                    template,
+                                    template.designation,
+                                  )
                                 }
-                                placeholder={`Enter designation…`}
+                                placeholder="Enter designation…"
                               />
                             ) : (
                               <Input
-                                value={roleValues[variable] ?? ""}
+                                value={values[variable] ?? ""}
                                 onChange={(event) =>
-                                  setRoleValues((prev) => ({
+                                  setValues((prev) => ({
                                     ...prev,
                                     [variable]: event.target.value,
                                   }))

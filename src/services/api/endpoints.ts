@@ -104,6 +104,8 @@ export const endpoints = {
   offerLetterStatus: (id: string) => `/offer-letters/${id}/status`,
   offerLetterRestore: (id: string) => `/offer-letters/${id}/restore`,
   offerLetterGenerate: "/offer-letters/generate",
+  designationsSearch: "/designations/search",
+  documents: "/documents",
   templates: "/templates",
   templateValidate: "/templates/validate",
   templatePreview: "/templates/preview",
