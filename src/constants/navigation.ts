@@ -9,6 +9,7 @@ import {
   FileClock,
   Fingerprint,
   Gauge,
+  Handshake,
   KeyRound,
   LayoutDashboard,
   ListChecks,

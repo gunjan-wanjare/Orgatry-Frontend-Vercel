@@ -43,6 +43,7 @@ export const endpoints = {
   attendanceToday: "/attendance/today",
   attendanceAnalytics: "/attendance/analytics",
   attendanceRegularizations: "/attendance/regularizations",
+  attendanceRegularizationById: (id: string) => `/attendance/regularizations/${id}`,
   attendanceRegularize: "/attendance/regularize",
   leaveRequests: "/leave/requests",
   leaveApply: "/leave/apply",
@@ -130,5 +131,20 @@ export const endpoints = {
   config: {
     list: "/config",
     byKey: (key: string) => `/config/${key}`,
+  },
+  fnf: {
+    list: "/fnf-settlements",
+    detail: (id: string) => `/fnf-settlements/${id}`,
+    create: "/fnf-settlements",
+    update: (id: string) => `/fnf-settlements/${id}`,
+    delete: (id: string) => `/fnf-settlements/${id}`,
+    submit: (id: string) => `/fnf-settlements/${id}/submit`,
+    approve: (id: string) => `/fnf-settlements/${id}/approve`,
+    reject: (id: string) => `/fnf-settlements/${id}/reject`,
+    letter: (id: string) => `/fnf-settlements/${id}/letter`,
+    letterPdf: (id: string) => `/fnf-settlements/${id}/letter/pdf`,
+    employeeData: (employeeId: string) => `/fnf-settlements/employee/${employeeId}/data`,
+    acknowledge: (id: string) => `/fnf-settlements/${id}/acknowledge`,
+    approvals: (id: string) => `/fnf-settlements/${id}/approvals`,
   },
 } as const;

@@ -12,6 +12,8 @@ export const permissions = {
   attendanceWriteSelf: 'attendance.write.self',
   attendanceRegularizeSelf: 'attendance.regularize.self',
   attendanceApproveTeam: 'attendance.approve.team',
+  attendanceApproveDepartment: 'attendance.approve.department',
+  attendanceApproveAll: 'attendance.approve.all',
   attendanceRead: 'attendance.read',
   attendanceWrite: 'attendance.write',
   leaveRead: 'leave.read',
@@ -50,5 +52,9 @@ export const permissions = {
   tasksComment: 'tasks.comment',
   tasksKanbanMove: 'tasks.kanban.move',
   tasksAnalyticsSelf: 'tasks.analytics.self',
-  tasksAnalyticsTeam: 'tasks.analytics.team'
+  tasksAnalyticsTeam: 'tasks.analytics.team',
+  fnfRead: 'fnf.read',
+  fnfWrite: 'fnf.write',
+  fnfApprove: 'fnf.approve',
+  fnfManage: 'fnf.manage',
 } as const;
