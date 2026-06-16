@@ -170,10 +170,10 @@ jobs:
           rm /tmp/secrets.json &&
           chmod 600 .env &&
           echo 'Starting deployment...' &&
-          docker image prune -f &&
+          docker network inspect shared-network >/dev/null 2>&1 || docker network create shared-network &&
           docker-compose pull &&
-          docker-compose down &&
           docker-compose up -d --force-recreate &&
+          docker image prune -af &&
           echo 'Deployment complete'
           "
       - name: Remove GitHub Actions IP
