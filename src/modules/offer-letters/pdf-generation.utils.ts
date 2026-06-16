@@ -8,12 +8,20 @@
 
 export const A4_WIDTH_PX = 794;
 export const A4_HEIGHT_PX = 1123;
+export const LETTER_WIDTH_PX = 816;
+export const LETTER_HEIGHT_PX = 1056;
 export const PDF_CAPTURE_SCALE = 4;
+
+export function pageDimensions(format: 'a4' | 'letter' = 'a4') {
+  return format === 'letter'
+    ? { pxWidth: LETTER_WIDTH_PX, pxHeight: LETTER_HEIGHT_PX, jsPdfFormat: 'letter' as const }
+    : { pxWidth: A4_WIDTH_PX, pxHeight: A4_HEIGHT_PX, jsPdfFormat: 'a4' as const };
+}
 
 export const PDF_PRINT_CSS = `
   @page { size: A4 portrait; }
   html, body {
-    background: #ffffff !important;
+    background: transparent !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -30,6 +38,7 @@ export const PDF_PRINT_CSS = `
 export type PdfDownloadOptions = {
   supplementalCss?: string;
   canvasDebugOnly?: boolean;
+  format?: 'a4' | 'letter';
 };
 
 export type CaptureLayoutAudit = {
@@ -163,7 +172,7 @@ export function ensureFullDocumentHtml(html: string, supplementalCss?: string): 
   const withCss = mergeSupplementalCss(html.trim(), supplementalCss);
   if (/^<!doctype html>/i.test(withCss) || /<html[\s>]/i.test(withCss)) return withCss;
   const bodyCss = supplementalCss?.trim() ?? '';
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:Georgia,serif;color:#242424;background:#ffffff}${bodyCss}</style></head><body>${withCss}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:Georgia,serif;color:#242424;background:transparent}${bodyCss}</style></head><body>${withCss}</body></html>`;
 }
 
 export async function normalizeHtmlDocumentForPdf(html: string, supplementalCss?: string) {
@@ -298,10 +307,10 @@ export function auditCaptureLayout(doc: Document): CaptureLayoutAudit {
   };
 }
 
-function createPdfRenderFrame(): HTMLIFrameElement {
+function createPdfRenderFrame(pxWidth = A4_WIDTH_PX, pxHeight = A4_HEIGHT_PX): HTMLIFrameElement {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('title', 'PDF render frame');
-  iframe.style.cssText = `position:fixed;left:-12000px;top:0;width:${A4_WIDTH_PX}px;min-height:${A4_HEIGHT_PX}px;height:auto;opacity:1;pointer-events:none;border:none;background:#fff;z-index:-1`;
+  iframe.style.cssText = `position:fixed;left:-12000px;top:0;width:${pxWidth}px;min-height:${pxHeight}px;height:auto;opacity:1;pointer-events:none;border:none;background:#fff;z-index:-1`;
   return iframe;
 }
 
@@ -313,48 +322,50 @@ function injectStylesIntoLiveDocument(doc: Document, stylesheetText: string): vo
   doc.body.prepend(style);
 }
 
-function lockDocumentWidth(doc: Document): void {
+function lockDocumentWidth(doc: Document, pxWidth = A4_WIDTH_PX): void {
   for (const el of [doc.documentElement, doc.body]) {
-    el.style.width = `${A4_WIDTH_PX}px`;
-    el.style.maxWidth = `${A4_WIDTH_PX}px`;
+    el.style.width = `${pxWidth}px`;
+    el.style.maxWidth = `${pxWidth}px`;
     el.style.margin = '0';
     el.style.padding = '0';
   }
 }
 
-function expandIframeToDocument(iframe: HTMLIFrameElement, doc: Document) {
-  const height = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, A4_HEIGHT_PX);
-  iframe.style.width = `${A4_WIDTH_PX}px`;
+function expandIframeToDocument(iframe: HTMLIFrameElement, doc: Document, pxWidth = A4_WIDTH_PX, pxHeight = A4_HEIGHT_PX) {
+  const height = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, pxHeight);
+  iframe.style.width = `${pxWidth}px`;
   iframe.style.height = `${height}px`;
-  return { width: A4_WIDTH_PX, height };
+  return { width: pxWidth, height };
 }
 
-function buildPipelineConfigs(filename: string, stylesheetText: string, pageCount: number): PdfPipelineConfigs {
+function buildPipelineConfigs(filename: string, stylesheetText: string, pageCount: number, format: 'a4' | 'letter' = 'a4'): PdfPipelineConfigs {
+  const fmt = format === 'letter' ? 'letter' : 'a4';
+  const dims = pageDimensions(fmt);
   const html2canvasConfig: Record<string, unknown> = {
     scale: PDF_CAPTURE_SCALE,
     useCORS: true,
     allowTaint: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: null,
     logging: isPdfDebugEnabled(),
     scrollX: 0,
     scrollY: 0,
-    windowWidth: A4_WIDTH_PX,
-    width: A4_WIDTH_PX,
+    windowWidth: dims.pxWidth,
+    width: dims.pxWidth,
     onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
       const cloneStyle = clonedDoc.createElement('style');
       cloneStyle.setAttribute('data-pdf-capture-styles', 'true');
       cloneStyle.textContent = stylesheetText;
       clonedElement.insertBefore(cloneStyle, clonedElement.firstChild);
       clonedDoc.documentElement.style.background = '#ffffff';
-      clonedDoc.documentElement.style.width = `${A4_WIDTH_PX}px`;
+      clonedDoc.documentElement.style.width = `${dims.pxWidth}px`;
       clonedDoc.body.style.background = '#ffffff';
       clonedDoc.body.style.color = '#242424';
-      clonedDoc.body.style.width = `${A4_WIDTH_PX}px`;
+      clonedDoc.body.style.width = `${dims.pxWidth}px`;
       clonedDoc.body.style.margin = '0';
       clonedDoc.body.style.padding = '0';
     },
   };
-  const jsPDFConfig = { unit: 'mm', format: 'a4', orientation: 'portrait' as const };
+  const jsPDFConfig = { unit: 'mm', format: dims.jsPdfFormat, orientation: 'portrait' as const };
   const html2pdfConfig: Record<string, unknown> = {
     margin: 0,
     filename,
@@ -384,10 +395,11 @@ type PreparedRender = {
   layoutAudit: CaptureLayoutAudit;
 };
 
-async function preparePdfRender(html: string, supplementalCss: string): Promise<PreparedRender> {
+async function preparePdfRender(html: string, supplementalCss: string, format: 'a4' | 'letter' = 'a4'): Promise<PreparedRender> {
+  const dims = pageDimensions(format);
   const { html: normalizedHtml, removedLinks, existingCss, fetchedExternalCss } =
     await normalizeHtmlDocumentForPdf(html, supplementalCss);
-  const iframe = createPdfRenderFrame();
+  const iframe = createPdfRenderFrame(dims.pxWidth, dims.pxHeight);
   document.body.appendChild(iframe);
   await new Promise<void>((resolve, reject) => {
     iframe.onload = () => resolve();
@@ -399,14 +411,14 @@ async function preparePdfRender(html: string, supplementalCss: string): Promise<
     document.body.removeChild(iframe);
     throw new Error('Unable to access PDF render document');
   }
-  lockDocumentWidth(doc);
+  lockDocumentWidth(doc, dims.pxWidth);
   const imageStats = await inlineImagesAsDataUrls(doc);
   await waitForFonts(doc);
   await waitForImages(doc);
   await waitForAnimationFrames(2);
   const stylesheetText = buildStylesheetForCapture(doc, existingCss, supplementalCss, fetchedExternalCss);
   injectStylesIntoLiveDocument(doc, stylesheetText);
-  lockDocumentWidth(doc);
+  lockDocumentWidth(doc, dims.pxWidth);
   await waitForAnimationFrames(2);
   return {
     iframe,
@@ -418,7 +430,7 @@ async function preparePdfRender(html: string, supplementalCss: string): Promise<
     normalizedHtml,
     removedLinks,
     fetchedExternalCss,
-    iframeDimensions: expandIframeToDocument(iframe, doc),
+    iframeDimensions: expandIframeToDocument(iframe, doc, dims.pxWidth, dims.pxHeight),
     layoutAudit: auditCaptureLayout(doc),
   };
 }
@@ -457,8 +469,9 @@ export async function downloadHtmlAsPdf(html: string, filename: string, options:
   const startMs = performance.now();
   const supplementalCss = options.supplementalCss?.trim() ?? '';
   const canvasDebugOnly = options.canvasDebugOnly ?? isCanvasDebugEnabled();
-  const prepared = await preparePdfRender(html, supplementalCss);
-  const configs = buildPipelineConfigs(filename, prepared.stylesheetText, prepared.pageCount);
+  const format = options.format ?? 'a4';
+  const prepared = await preparePdfRender(html, supplementalCss, format);
+  const configs = buildPipelineConfigs(filename, prepared.stylesheetText, prepared.pageCount, format);
 
   if (isPdfDebugEnabled() || canvasDebugOnly) logPipelineConfigs(configs);
 

@@ -17,7 +17,6 @@ Enterprise React frontend for the IITIL HRMS + ATS + Admin Portal.
 - Axios
 - TanStack Table
 - Lucide React
-- Sonner
 
 ## Run
 

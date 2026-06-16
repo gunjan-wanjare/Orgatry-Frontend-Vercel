@@ -79,6 +79,16 @@ const PreOnboardingPortalPage = lazy(() =>
     default: module.PreOnboardingPortalPage,
   })),
 );
+const FnFSettlementPage = lazy(() =>
+  import("@/modules/fnf-settlement/FnFSettlementPage").then((module) => ({
+    default: module.FnFSettlementPage,
+  })),
+);
+const FnFSettlementDetailPage = lazy(() =>
+  import("@/modules/fnf-settlement/FnFSettlementDetailPage").then((module) => ({
+    default: module.FnFSettlementDetailPage,
+  })),
+);
 const TasksPage = lazy(() =>
   import("@/modules/tasks/TasksPage").then((module) => ({
     default: module.TasksPage,
@@ -206,9 +216,43 @@ export const router = createBrowserRouter([
             element: lazyElement(<AttendancePage />),
           },
           {
-            element: <ProtectedRoute permissions={[permissions.leaveRead]} />,
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.leaveRead,
+                  permissions.leaveWrite,
+                  permissions.leaveApprove,
+                ]}
+              />
+            ),
+            children: [{ path: "/leaves", element: lazyElement(<LeavesPage />) }],
+          },
+          {
+            element: <ProtectedRoute permissions={[permissions.employeeWrite]} />,
             children: [
-              { path: "/leaves", element: lazyElement(<LeavesPage />) },
+              { path: "/onboarding", element: lazyElement(<OnboardingPage />) },
+            ],
+          },
+          {
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.fnfRead,
+                  permissions.fnfWrite,
+                  permissions.fnfApprove,
+                  permissions.fnfManage,
+                ]}
+              />
+            ),
+            children: [
+              {
+                path: "/fnf-settlement",
+                element: lazyElement(<FnFSettlementPage />),
+              },
+              {
+                path: "/fnf-settlement/:id",
+                element: lazyElement(<FnFSettlementDetailPage />),
+              },
             ],
           },
           {

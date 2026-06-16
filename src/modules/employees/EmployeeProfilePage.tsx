@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Eye, FileUp, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Eye, FileUp, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageTransition } from '@/components/animations/PageTransition';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { employeeApi } from '@/services/api/employee.api';
@@ -17,8 +19,9 @@ import { getErrorMessage } from '@/lib/errors';
 import { usePermissions } from '@/hooks/use-permissions';
 import { permissions } from '@/constants/permissions';
 import { useAuthStore } from '@/store/auth.store';
+import type { EmployeeLicense } from '@/types/domain';
 
-const TAB_KEYS = ['overview', 'personal', 'contact', 'employment', 'documents', 'bank', 'emergency'] as const;
+const TAB_KEYS = ['overview', 'personal', 'contact', 'employment', 'licenses', 'documents', 'bank', 'emergency'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 type EmergencyContact = { name: string; relationship: string; mobileNumber: string };
@@ -45,10 +48,12 @@ export function EmployeeProfilePage() {
 
   const [personal, setPersonal] = useState({ firstName: '', lastName: '', gender: '', dob: '', maritalStatus: '', nationality: '', bloodGroup: '' });
   const [contact, setContact] = useState({ personalEmail: '', mobileNumber: '', currentAddress: '', permanentAddress: '' });
-  const [employment, setEmployment] = useState({ designation: '', department: '', workLocation: '', status: '', noticePeriodDays: '' });
+  const [employment, setEmployment] = useState({ designation: '', department: '', workLocation: '', status: '', noticePeriodDays: '', esicNumber: '', pfUanNumber: '', pfTransferWithdrawalStatus: '' });
   const [emergency, setEmergency] = useState<EmergencyContact[]>([{ name: '', relationship: '', mobileNumber: '' }]);
   const [bankForm, setBankForm] = useState({ accountHolderName: '', accountNumber: '', bankName: '', branch: '', ifscCode: '' });
   const [rejectRemarks, setRejectRemarks] = useState('');
+  const [licenses, setLicenses] = useState<EmployeeLicense[]>([]);
+  const [deleteLicenseId, setDeleteLicenseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -73,9 +78,16 @@ export function EmployeeProfilePage() {
       workLocation: String(profile.workLocation ?? ''),
       status: String(profile.status ?? ''),
       noticePeriodDays: String(profile.noticePeriodDays ?? ''),
+      esicNumber: String(profile.esicNumber ?? ''),
+      pfUanNumber: String(profile.pfUanNumber ?? ''),
+      pfTransferWithdrawalStatus: String(profile.pfTransferWithdrawalStatus ?? ''),
     });
     const contacts = Array.isArray(profile.emergencyContacts) ? profile.emergencyContacts as EmergencyContact[] : [];
     if (contacts.length) setEmergency(contacts);
+    const assignedLicenses = Array.isArray(profile.softwareLicensesAssigned)
+      ? profile.softwareLicensesAssigned as EmployeeLicense[]
+      : [];
+    setLicenses(assignedLicenses);
   }, [profile]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['employee-profile', id] });
@@ -109,6 +121,12 @@ export function EmployeeProfilePage() {
   const saveEmergency = useMutation({
     mutationFn: () => employeeApi.updateEmergency(id, { contacts: emergency }),
     onSuccess: () => { toast.success('Emergency contacts saved'); invalidate(); },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const saveLicenses = useMutation({
+    mutationFn: () => employeeApi.updateLicenses(id, licenses),
+    onSuccess: () => { toast.success('Software licenses saved'); invalidate(); },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
@@ -249,18 +267,111 @@ export function EmployeeProfilePage() {
           <TabsContent value="employment" className="mt-4">
             <SectionCard title="Employment Information">
               <div className="grid gap-4 md:grid-cols-2">
-                {Object.entries(employment).map(([key, value]) => (
-                  <div key={key}>
-                    <Label className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
-                    <Input disabled={!canEditHr} value={value} onChange={(event) => setEmployment((prev) => ({ ...prev, [key]: event.target.value }))} />
-                  </div>
-                ))}
+                {Object.entries(employment).map(([key, value]) => {
+                  if (key === 'pfTransferWithdrawalStatus') {
+                    return (
+                      <div key={key}>
+                        <Label className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
+                        <Select value={value} onValueChange={(v) => setEmployment((prev) => ({ ...prev, [key]: v }))} disabled={!canEditHr}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                            <SelectItem value="PENDING_WITH_EMPLOYER">Pending with Employer</SelectItem>
+                            <SelectItem value="UNDER_PROCESS">Under Process</SelectItem>
+                            <SelectItem value="SETTLED">Settled</SelectItem>
+                            <SelectItem value="REJECTED">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={key}>
+                      <Label className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
+                      <Input disabled={!canEditHr} value={value} onChange={(event) => setEmployment((prev) => ({ ...prev, [key]: event.target.value }))} />
+                    </div>
+                  );
+                })}
               </div>
               {canEditHr ? (
                 <Button className="mt-4" disabled={saveEmployment.isPending} onClick={() => saveEmployment.mutate()}>
                   Save employment
                 </Button>
               ) : null}
+            </SectionCard>
+          </TabsContent>
+
+          <TabsContent value="licenses" className="mt-4">
+            <SectionCard title="Software Licenses Assigned">
+              <div className="space-y-3">
+                {licenses.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No software licenses assigned yet.</p>
+                )}
+                {licenses.map((license, index) => (
+                  <div key={license.id} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-end rounded-md border border-border bg-white/[0.03] p-3">
+                    <div>
+                      <Label>License Name</Label>
+                      <Input
+                        value={license.licenseName}
+                        onChange={(event) =>
+                          setLicenses((prev) =>
+                            prev.map((item, i) =>
+                              i === index ? { ...item, licenseName: event.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label>License Key</Label>
+                      <Input
+                        value={license.licenseKey}
+                        onChange={(event) =>
+                          setLicenses((prev) =>
+                            prev.map((item, i) =>
+                              i === index ? { ...item, licenseKey: event.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteLicenseId(license.id ?? null)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setLicenses((prev) => [...prev, { licenseName: '', licenseKey: '' }])
+                  }
+                >
+                  <Plus className="mr-2 size-4" />Add License
+                </Button>
+                {licenses.length > 0 && (
+                  <Button
+                    disabled={saveLicenses.isPending}
+                    onClick={() => saveLicenses.mutate()}
+                  >
+                    {saveLicenses.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Save Licenses
+                  </Button>
+                )}
+              </div>
             </SectionCard>
           </TabsContent>
 
@@ -359,6 +470,24 @@ export function EmployeeProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <ConfirmModal
+        open={deleteLicenseId !== null}
+        title="Remove License"
+        description={`Remove "${licenses.find((l) => l.id === deleteLicenseId)?.licenseName || "this license"}" from assigned software licenses?`}
+        confirmLabel="Remove"
+        variant="danger"
+        onConfirm={() => {
+          const updated = licenses.filter((l) => l.id !== deleteLicenseId);
+          setLicenses(updated);
+          setDeleteLicenseId(null);
+          employeeApi.updateLicenses(id, updated).then(() => {
+            toast.success('License removed');
+            invalidate();
+          }).catch((error) => toast.error(getErrorMessage(error)));
+        }}
+        onCancel={() => setDeleteLicenseId(null)}
+      />
     </PageTransition>
   );
 }
