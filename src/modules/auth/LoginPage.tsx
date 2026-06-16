@@ -66,11 +66,11 @@ export function LoginPage() {
               <LockKeyhole className="size-5" />
             </div>
             <CardTitle>Sign in</CardTitle>
-            <CardDescription>Use your IITIL Portal user ID and password.</CardDescription>
+            <CardDescription>Use your email or employee ID and password.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={form.handleSubmit(submit)}>
-              <FormField label="User ID" name="userId" register={form.register} error={form.formState.errors.userId?.message} placeholder="admin" />
+              <FormField label="Email / Employee ID" name="userId" register={form.register} error={form.formState.errors.userId?.message} placeholder="Email or Employee ID" />
               <FormField label="Password" name="password" type="password" register={form.register} error={form.formState.errors.password?.message} placeholder="Password" />
               <Button className="mt-2" type="submit" disabled={mutation.isPending}>
                 <LogIn className="size-4" />

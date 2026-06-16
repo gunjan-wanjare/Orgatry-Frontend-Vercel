@@ -1,167 +1,259 @@
-import { ArrowLeft, Download, Eye, Loader2, RefreshCw, WandSparkles } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { PageTransition } from '@/components/animations/PageTransition';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { endpoints } from '@/services/api/endpoints';
-import { resourceApi } from '@/services/api/resource.api';
-import { httpClient } from '@/services/api/http-client';
-import type { ApiResponse } from '@/types/api';
-import type { ColumnDef } from '@tanstack/react-table';
-import { DataTable } from '@/components/tables/DataTable';
-import { useResourceQuery } from '@/hooks/use-resource-query';
+import {
+  ArrowLeft,
+  CalendarIcon,
+  Download,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { format, parseISO } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { endpoints } from "@/services/api/endpoints";
+import { resourceApi } from "@/services/api/resource.api";
+import { httpClient } from "@/services/api/http-client";
+import type { ApiResponse } from "@/types/api";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/tables/DataTable";
+import { useResourceQuery } from "@/hooks/use-resource-query";
+import { getErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
+import {
+  A4_HEIGHT_PX,
+  A4_WIDTH_PX,
+  PageBreakOverlay,
+} from "./PageBreakOverlay";
+import {
+  applyFormulas,
+  buildDocumentPdfFilename,
+  buildOfferDocument,
+  downloadOfferLetterPdf,
+  downloadPreviewHtmlAsPdf,
+  getComputedVariableNames,
+  offerStatusBadgeVariant,
+  OFFER_STATUS_LABELS,
+  stripScriptsForPreview,
+} from "./offer-letter.utils";
+import { DesignationAutocomplete } from "@/modules/mailers-and-docs/DesignationAutocomplete";
+import type { DesignationTemplate } from "@/services/api/designation.api";
 
 type Template = {
   id: string;
   name: string;
   key: string;
   variables: string[];
+  formulas?: Record<string, string>;
   isDefault: boolean;
   htmlContent: string;
   cssContent?: string;
+  currentVersion?: number;
 };
 
 type OfferLetter = {
   id: string;
   templateId: string;
-  template: { id: string; name: string; key: string };
+  template: { id: string; name: string; key: string; currentVersion?: number };
+  templateVersion?: { id: string; version: number; name: string } | null;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
   variables: Record<string, string>;
-  generatedUrl: string;
+  generatedUrl?: string | null;
   status: string;
   createdAt: string;
+  generatedAt?: string | null;
+  renderedHtml?: string | null;
 };
 
-type GenerateResult = {
-  id: string;
+type GenerateResult = OfferLetter & {
   generatedHtml: string;
-  generatedUrl: string;
 };
 
-type Step = 'form' | 'preview';
+type Step = "form" | "preview";
 
-function interpolate(html: string, vars: Record<string, string>): string {
-  let result = html;
-  for (const [k, v] of Object.entries(vars)) {
-    result = result.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g'), v ?? '');
-  }
-  return result;
-}
+type DocumentsTabProps = {
+  triggerGenerate: boolean;
+  onGenerateHandled: () => void;
+};
 
-function buildDoc(html: string, css: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:sans-serif}${css}</style></head><body>${html}</body></html>`;
-}
-
-async function downloadAsPdf(html: string, filename: string) {
-  const html2pdf = (await import('html2pdf.js')).default;
-  const parsed = new DOMParser().parseFromString(html, 'text/html');
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '794px';
-  container.style.background = '#ffffff';
-  container.style.color = '#111827';
-
-  const body = parsed.body.cloneNode(true) as HTMLElement;
-  container.appendChild(body);
-
-  for (const styleNode of Array.from(parsed.head.querySelectorAll('style'))) {
-    const style = document.createElement('style');
-    style.textContent = styleNode.textContent ?? '';
-    container.appendChild(style);
-  }
-
-  document.body.appendChild(container);
-  await html2pdf()
-    .set({
-      margin: 0,
-      filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    })
-    .from(container)
-    .save();
-  document.body.removeChild(container);
-}
-
-export function OfferLettersPage() {
+export function DocumentsTab({
+  triggerGenerate,
+  onGenerateHandled,
+}: DocumentsTabProps) {
   const queryClient = useQueryClient();
-
-  // Generate modal state
+  const [page, setPage] = useState(1);
   const [generateOpen, setGenerateOpen] = useState(false);
-  const [step, setStep] = useState<Step>('form');
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [detailOffer, setDetailOffer] = useState<OfferLetter | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OfferLetter | null>(null);
+  const [step, setStep] = useState<Step>("form");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [previewHtml, setPreviewHtml] = useState('');
-  const [generatedId, setGeneratedId] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [generatedOffer, setGeneratedOffer] = useState<GenerateResult | null>(
+    null,
+  );
   const [downloading, setDownloading] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'variables' | 'preview'>('variables');
+  const [mobileTab, setMobileTab] = useState<"variables" | "preview">(
+    "variables",
+  );
 
-  // Offer letters list
-  const listQuery = useResourceQuery<OfferLetter>('offer-letters', endpoints.offerLetters, { page: 1, limit: 5 });
+  const listQuery = useResourceQuery<OfferLetter>(
+    "offer-letters",
+    endpoints.offerLetters,
+    {
+      page,
+      limit: 25,
+    },
+  );
   const offerLetters = listQuery.data?.items ?? [];
+  const totalPages = listQuery.data?.meta.totalPages ?? 1;
 
-  // Templates for dropdown
-  const { data: templatesData } = useQuery({
-    queryKey: ['templates-list'],
-    queryFn: () => resourceApi.list<Template>(endpoints.templates, { page: 1, limit: 50 }),
-    enabled: generateOpen,
+  const templatesQuery = useQuery({
+    queryKey: ["templates-list"],
+    queryFn: () =>
+      resourceApi.list<Template>(endpoints.templates, { page: 1, limit: 100 }),
   });
-  const templates = templatesData?.items ?? [];
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const templates = templatesQuery.data?.items ?? [];
+  const selectedTemplate = templates.find(
+    (template) => template.id === selectedTemplateId,
+  );
 
-  // When template changes, reset values to its detected variables
+  useEffect(() => {
+    if (!triggerGenerate) return;
+    openGenerate();
+    onGenerateHandled();
+  }, [triggerGenerate]);
+
   useEffect(() => {
     if (!selectedTemplate) return;
     setValues((prev) => {
       const next: Record<string, string> = {};
-      for (const v of selectedTemplate.variables) next[v] = prev[v] ?? '';
+      for (const variable of selectedTemplate.variables) {
+        next[variable] = prev[variable] ?? "";
+      }
       return next;
     });
   }, [selectedTemplateId, selectedTemplate]);
 
-  // Live preview in form step
   useEffect(() => {
-    if (!selectedTemplate || step !== 'form') return;
-    const html = interpolate(selectedTemplate.htmlContent, values);
-    setPreviewHtml(buildDoc(html, selectedTemplate.cssContent ?? ''));
+    if (!selectedTemplate || step !== "form") return;
+    const formulas = selectedTemplate.formulas ?? {};
+    const computed =
+      Object.keys(formulas).length > 0
+        ? applyFormulas(values, formulas)
+        : values;
+    setPreviewHtml(
+      stripScriptsForPreview(
+        buildOfferDocument(
+          selectedTemplate.htmlContent,
+          selectedTemplate.cssContent ?? "",
+          computed,
+        ),
+      ),
+    );
   }, [values, selectedTemplate, step]);
 
   const generateMutation = useMutation({
-    mutationFn: () =>
-      httpClient.post<ApiResponse<GenerateResult>>('/offer-letters/generate', {
-        templateId: selectedTemplateId,
-        variables: values,
-      }),
+    mutationFn: () => {
+      const computedVars = selectedTemplate?.formulas
+        ? applyFormulas(values, selectedTemplate.formulas)
+        : values;
+
+      return httpClient.post<ApiResponse<GenerateResult>>(
+        endpoints.offerLetterGenerate,
+        {
+          templateId: selectedTemplateId,
+          recipientName,
+          recipientEmail,
+          variables: computedVars,
+        },
+      );
+    },
     onSuccess: (res) => {
       const data = res.data.data;
-      setGeneratedId(data.id);
-      setPreviewHtml(data.generatedHtml);
-      setStep('preview');
-      toast.success('Offer letter generated');
-      void queryClient.invalidateQueries({ queryKey: ['offer-letters'] });
+      setGeneratedOffer(data);
+      setPreviewHtml(stripScriptsForPreview(data.generatedHtml));
+      setStep("preview");
+      toast.success("Document generated");
+      void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
+      void queryClient.invalidateQueries({ queryKey: ["designations"] });
     },
-    onError: (e: Error) => toast.error(e.message ?? 'Generation failed'),
+    onError: (error) => toast.error(getErrorMessage(error)),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      httpClient.delete(endpoints.offerLetterDetail(id)),
+    onSuccess: () => {
+      toast.success("Document deleted");
+      setDeleteTarget(null);
+      setDetailOffer(null);
+      void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      httpClient.patch(endpoints.offerLetterStatus(id), { status }),
+    onSuccess: (res) => {
+      toast.success("Status updated");
+      setDetailOffer(res.data.data as OfferLetter);
+      void queryClient.invalidateQueries({ queryKey: ["offer-letters"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const allFilled = useMemo(() => {
+    const formulas = selectedTemplate?.formulas ?? {};
+    const computedNames = getComputedVariableNames(formulas);
+    const inputVars =
+      selectedTemplate?.variables.filter((v) => !computedNames.has(v)) ?? [];
+    return inputVars.every((v) => values[v]?.trim());
+  }, [selectedTemplate, values]);
+
   function openGenerate(cloneFrom?: OfferLetter) {
-    setStep('form');
-    setGeneratedId(null);
-    setPreviewHtml('');
-    setMobileTab('variables');
+    setStep("form");
+    setGeneratedOffer(null);
+    setPreviewHtml("");
+    setMobileTab("variables");
     if (cloneFrom) {
       setSelectedTemplateId(cloneFrom.templateId);
+      setRecipientName(cloneFrom.recipientName ?? "");
+      setRecipientEmail(cloneFrom.recipientEmail ?? "");
       setValues({ ...cloneFrom.variables });
     } else {
-      const def = templates.find((t) => t.isDefault);
-      setSelectedTemplateId(def?.id ?? '');
+      const defaultTemplate = templates.find((template) => template.isDefault);
+      setSelectedTemplateId(defaultTemplate?.id ?? "");
+      setRecipientName("");
+      setRecipientEmail("");
       setValues({});
     }
     setGenerateOpen(true);
@@ -169,268 +261,851 @@ export function OfferLettersPage() {
 
   function closeGenerate() {
     setGenerateOpen(false);
-    setStep('form');
-    setGeneratedId(null);
-    setPreviewHtml('');
+    setStep("form");
+    setGeneratedOffer(null);
+    setPreviewHtml("");
     setValues({});
-    setSelectedTemplateId('');
+    setSelectedTemplateId("");
+    setRecipientName("");
+    setRecipientEmail("");
   }
 
-  async function handleDownload() {
-    if (!selectedTemplate) return;
+  async function handleDownload(source?: {
+    html?: string;
+    id?: string;
+    filename?: string;
+    recipientName?: string | null;
+    templateName?: string | null;
+    supplementalCss?: string;
+  }) {
     setDownloading(true);
     try {
-      const html = interpolate(selectedTemplate.htmlContent, values);
-      const full = buildDoc(html, selectedTemplate.cssContent ?? '');
-      await downloadAsPdf(full, `offer-letter-${generatedId ?? Date.now()}.pdf`);
-      toast.success('PDF downloaded');
-    } catch {
-      toast.error('PDF generation failed');
+      const offerId = source?.id ?? generatedOffer?.id;
+      const filename =
+        source?.filename ??
+        buildDocumentPdfFilename(
+          source?.recipientName ??
+            detailOffer?.recipientName ??
+            generatedOffer?.recipientName ??
+            recipientName,
+          source?.templateName ??
+            detailOffer?.template?.name ??
+            generatedOffer?.template?.name ??
+            selectedTemplate?.name,
+        );
+
+      if (offerId) {
+        await downloadOfferLetterPdf(offerId, filename);
+        toast.success("PDF downloaded");
+        return;
+      }
+
+      const html = source?.html ?? previewHtml;
+      if (!html) {
+        toast.error("No rendered content available for download");
+        return;
+      }
+
+      await downloadPreviewHtmlAsPdf(html, filename, {
+        recipientName:
+          source?.recipientName ??
+          generatedOffer?.recipientName ??
+          recipientName ??
+          null,
+        templateName:
+          source?.templateName ??
+          generatedOffer?.template?.name ??
+          selectedTemplate?.name ??
+          null,
+      });
+      toast.success("PDF downloaded");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
       setDownloading(false);
     }
   }
 
+  async function openDetail(offer: OfferLetter) {
+    try {
+      const res = await httpClient.get<ApiResponse<OfferLetter>>(
+        endpoints.offerLetterDetail(offer.id),
+      );
+      setDetailOffer(res.data.data ?? offer);
+    } catch {
+      setDetailOffer(offer);
+    }
+  }
+
   const columns: ColumnDef<OfferLetter>[] = [
     {
-      id: 'template',
-      header: 'Template',
+      id: "recipient",
+      header: "Recipient",
       cell: ({ row }) => (
-        <span className="font-medium text-foreground text-sm">{row.original.template?.name ?? '—'}</span>
+        <button
+          type="button"
+          className="text-left"
+          onClick={() => void openDetail(row.original)}
+        >
+          <span className="font-medium text-foreground text-sm">
+            {row.original.recipientName ?? "—"}
+          </span>
+          <p className="text-xs text-muted-foreground">
+            {row.original.recipientEmail ?? ""}
+          </p>
+        </button>
       ),
     },
     {
-      id: 'variables',
-      header: 'Variables',
-      cell: ({ row }) => {
-        const vars = row.original.variables ?? {};
-        const entries = Object.entries(vars).slice(0, 2);
-        return (
-          <div className="flex flex-col gap-0.5">
-            {entries.map(([k, v]) => (
-              <span key={k} className="text-xs text-muted-foreground">
-                <span className="font-mono text-cyan-400/70">{k}:</span> {String(v).slice(0, 24)}{String(v).length > 24 ? '…' : ''}
-              </span>
-            ))}
-            {Object.keys(vars).length > 2 && (
-              <span className="text-xs text-muted-foreground">+{Object.keys(vars).length - 2} more</span>
-            )}
-          </div>
-        );
-      },
+      id: "template",
+      header: "Template",
+      cell: ({ row }) => (
+        <div className="text-sm">
+          <p className="font-medium text-foreground">
+            {row.original.template?.name ?? "—"}
+          </p>
+          {row.original.templateVersion ? (
+            <p className="text-xs text-muted-foreground">
+              v{row.original.templateVersion.version}
+            </p>
+          ) : null}
+        </div>
+      ),
     },
     {
-      id: 'status',
-      header: 'Status',
-      cell: ({ row }) => <Badge variant="violet">{row.original.status}</Badge>,
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={offerStatusBadgeVariant(row.original.status)}>
+          {OFFER_STATUS_LABELS[row.original.status] ?? row.original.status}
+        </Badge>
+      ),
     },
     {
-      id: 'created',
-      header: 'Created',
+      id: "created",
+      header: "Created",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {new Date(row.original.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {new Date(row.original.createdAt).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
         </span>
       ),
     },
     {
-      id: 'actions',
-      header: '',
+      id: "actions",
+      header: "",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" title="Clone & edit" onClick={() => openGenerate(row.original)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Clone & regenerate"
+            onClick={() => openGenerate(row.original)}
+          >
             <RefreshCw className="size-3.5" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            title="Preview"
-            onClick={() => {
-              const t = templates.find((t) => t.id === row.original.templateId);
-              if (!t) { toast.error('Template not found'); return; }
-              const html = interpolate(t.htmlContent, row.original.variables);
-              setPreviewHtml(buildDoc(html, t.cssContent ?? ''));
-              setGeneratedId(row.original.id);
-              setSelectedTemplateId(t.id);
-              setValues(row.original.variables);
-              setStep('preview');
-              setGenerateOpen(true);
-            }}
+            title="View details"
+            onClick={() => void openDetail(row.original)}
           >
             <Eye className="size-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-rose-400 hover:text-rose-300"
+            title="Delete"
+            onClick={() => setDeleteTarget(row.original)}
+          >
+            <Trash2 className="size-3.5" />
           </Button>
         </div>
       ),
     },
   ];
 
-  const allFilled = selectedTemplate && selectedTemplate.variables.every((v) => values[v]?.trim());
-
   return (
-    <PageTransition>
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="Document generation"
-          title="Offer letters"
-          description="Generate offer letters from templates, fill variables, preview and download as PDF."
-          actions={
-            <Button onClick={() => openGenerate()}>
-              <WandSparkles className="size-4" /> Generate offer
-            </Button>
-          }
+    <>
+      <SectionCard
+        title="Documents"
+        description="Click a row to view details, download PDFs, update status, or delete documents."
+      >
+        <DataTable
+          data={offerLetters}
+          columns={columns as ColumnDef<Record<string, unknown>>[]}
+          isLoading={listQuery.isLoading}
+          emptyTitle="No documents yet"
+          emptyDescription="Generated documents will appear here."
+          page={page}
+          totalPages={totalPages}
+          total={listQuery.data?.meta.total ?? offerLetters.length}
+          onPageChange={setPage}
         />
+      </SectionCard>
 
-        <SectionCard
-          title="Generated offer letters"
-          description="Last 5 generated offers. Clone any to reuse with minor edits."
-        >
-          <DataTable
-            data={offerLetters}
-            columns={columns as ColumnDef<Record<string, unknown>>[]}
-            isLoading={listQuery.isLoading}
-            emptyTitle="No offer letters yet"
-            emptyDescription="Generated offer letters will appear here."
-            page={1}
-            totalPages={1}
-            total={offerLetters.length}
-            onPageChange={() => {}}
-          />
-        </SectionCard>
-
-        {/* Generate / Preview Dialog */}
-        <Dialog open={generateOpen} onOpenChange={(o) => !generateMutation.isPending && !downloading && (o ? undefined : closeGenerate())}>
-          <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden flex flex-col p-0">
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-              <div>
-                <DialogTitle className="text-base">
-                  {step === 'form' ? 'Generate offer letter' : 'Preview offer letter'}
-                </DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">
-                  {step === 'form' ? 'Select a template, fill in the variables and generate.' : 'Review the generated offer. Download as PDF or go back to edit.'}
-                </DialogDescription>
-              </div>
-              {step === 'preview' && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setStep('form')}>
-                    <ArrowLeft className="size-4" /> Back
-                  </Button>
-                  <Button size="sm" onClick={handleDownload} disabled={downloading}>
-                    {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                    Download PDF
-                  </Button>
-                </div>
-              )}
+      <Dialog
+        open={generateOpen}
+        onOpenChange={(open) =>
+          !generateMutation.isPending &&
+          !downloading &&
+          (open ? setGenerateOpen(true) : closeGenerate())
+        }
+      >
+        <DialogContent className="max-w-6xl max-h-[92vh] overflow-hidden flex flex-col p-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
+            <div>
+              <DialogTitle className="text-base">
+                {step === "form" ? "Generate document" : "Preview document"}
+              </DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">
+                {step === "form"
+                  ? "Enter recipient details, select a template, and fill mandatory variables before generating."
+                  : "Review the generated document and download as PDF."}
+              </DialogDescription>
             </div>
-
-            {step === 'form' && (
-              <div className="flex flex-1 overflow-hidden min-h-0">
-                {/* Mobile tab switcher */}
-                <div className="absolute left-6 top-16 z-10 flex gap-1 rounded-lg border border-border bg-slate-950/80 p-1 md:hidden">
-                  {(['variables', 'preview'] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setMobileTab(tab)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${mobileTab === tab ? 'bg-white/10 text-foreground' : 'text-muted-foreground'}`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Variables pane */}
-                <div className={`flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-border p-6 md:w-80 lg:w-96 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex'}`}>
-                  <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Template</span>
-                    <select
-                      className="h-10 cursor-pointer rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
-                      value={selectedTemplateId}
-                      onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    >
-                      <option value="">Select template…</option>
-                      {templates.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}{t.isDefault ? ' (default)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {selectedTemplate && selectedTemplate.variables.length > 0 && (
-                    <div className="grid gap-3">
-                      <span className="text-sm font-medium text-foreground">Variables</span>
-                      {selectedTemplate.variables.map((v) => (
-                        <label key={v} className="grid gap-1 text-sm">
-                          <span className="font-mono text-[11px] text-cyan-300">{`{{${v}}}`}</span>
-                          <Input
-                            value={values[v] ?? ''}
-                            onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
-                            placeholder={`Enter ${v.replace(/_/g, ' ')}…`}
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  )}
-
-                  {selectedTemplate && selectedTemplate.variables.length === 0 && (
-                    <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border p-3">
-                      This template has no variables. Click Generate to proceed.
-                    </p>
-                  )}
-
-                  <div className="mt-auto pt-2">
-                    <Button
-                      className="w-full"
-                      onClick={() => generateMutation.mutate()}
-                      disabled={generateMutation.isPending || !selectedTemplateId}
-                    >
-                      {generateMutation.isPending
-                        ? <><Loader2 className="size-4 animate-spin" /> Generating…</>
-                        : <><WandSparkles className="size-4" /> Generate</>}
-                    </Button>
-                    {selectedTemplate && !allFilled && (
-                      <p className="mt-1.5 text-center text-xs text-amber-400/80">Fill all variables for best results</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Preview pane */}
-                <div className={`flex flex-1 flex-col overflow-hidden p-4 ${mobileTab === 'variables' ? 'hidden md:flex' : 'flex'}`}>
-                  <p className="mb-2 shrink-0 text-xs text-muted-foreground">Live preview</p>
-                  {selectedTemplate ? (
-                    <div className="flex-1 overflow-hidden rounded-xl border border-border bg-white">
-                      <iframe
-                        srcDoc={previewHtml}
-                        className="h-full w-full"
-                        style={{ border: 'none', minHeight: 400 }}
-                        title="Offer letter preview"
-                        sandbox="allow-same-origin"
-                      />
-                    </div>
+            {step === "preview" ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("form")}
+                >
+                  <ArrowLeft className="size-4" /> Back
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    void handleDownload({
+                      ...(generatedOffer?.id ? { id: generatedOffer.id } : {}),
+                      html: previewHtml,
+                      recipientName:
+                        generatedOffer?.recipientName ?? recipientName ?? null,
+                      templateName:
+                        generatedOffer?.template?.name ??
+                        selectedTemplate?.name ??
+                        null,
+                      supplementalCss: selectedTemplate?.cssContent ?? "",
+                    })
+                  }
+                  disabled={downloading}
+                >
+                  {downloading ? (
+                    <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground">
-                      <p className="text-sm">Select a template to preview</p>
-                    </div>
+                    <Download className="size-4" />
                   )}
-                </div>
+                  Download PDF
+                </Button>
               </div>
-            )}
+            ) : null}
+          </div>
 
-            {step === 'preview' && (
-              <div className="flex flex-1 overflow-hidden min-h-0 p-4">
-                <div className="flex-1 overflow-hidden rounded-xl border border-border bg-white">
-                  <iframe
-                    srcDoc={previewHtml}
-                    className="h-full w-full"
-                    style={{ border: 'none', minHeight: 500 }}
-                    title="Generated offer letter"
-                    sandbox="allow-same-origin"
+          {step === "form" ? (
+            <div className="flex flex-1 overflow-hidden min-h-0">
+              <div className="absolute left-6 top-16 z-10 flex gap-1 rounded-lg border border-border bg-slate-950/80 p-1 md:hidden">
+                {(["variables", "preview"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setMobileTab(tab)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${mobileTab === tab ? "bg-white/10 text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className={`flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-border p-6 md:w-96 lg:w-[420px] ${mobileTab === "preview" ? "hidden md:flex" : "flex"}`}
+              >
+                <label className="grid gap-1.5 text-sm">
+                  <span className="font-medium text-foreground">
+                    Recipient name *
+                  </span>
+                  <Input
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder="e.g. Rahul Sharma"
                   />
+                </label>
+
+                <label className="grid gap-1.5 text-sm">
+                  <span className="font-medium text-foreground">
+                    Recipient email *
+                  </span>
+                  <Input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    placeholder="e.g. rahul@example.com"
+                  />
+                </label>
+
+                <label className="grid gap-1.5 text-sm">
+                  <span className="font-medium text-foreground">
+                    Template *
+                  </span>
+                  <select
+                    className="h-10 rounded-lg border border-input bg-slate-950/55 px-3 text-sm text-foreground"
+                    value={selectedTemplateId}
+                    onChange={(event) =>
+                      setSelectedTemplateId(event.target.value)
+                    }
+                  >
+                    <option value="">Select template…</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                        {template.isDefault ? " (default)" : ""}
+                        {template.currentVersion
+                          ? ` v${template.currentVersion}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {(() => {
+                  const formulas = selectedTemplate?.formulas ?? {};
+                  const computedNames = getComputedVariableNames(formulas);
+
+                  const inputVars =
+                    selectedTemplate?.variables.filter(
+                      (v: string) => !computedNames.has(v),
+                    ) ?? [];
+
+                  const computedVars =
+                    selectedTemplate?.variables.filter((v: string) =>
+                      computedNames.has(v),
+                    ) ?? [];
+
+                  const computedValues =
+                    Object.keys(formulas).length > 0
+                      ? applyFormulas(values, formulas)
+                      : values;
+
+                  const formatDateDisplay = (
+                    dateString: string | undefined,
+                  ) => {
+                    if (!dateString) return "Pick a date";
+                    const alreadyFormatted =
+                      /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(dateString);
+                    if (alreadyFormatted) return dateString;
+
+                    try {
+                      return format(parseISO(dateString), "d MMMM, yyyy");
+                    } catch (e) {
+                      return dateString || "Invalid date";
+                    }
+                  };
+
+                  const designationVariableKey =
+                    inputVars.find((v) => v.toLowerCase() === "designation") ??
+                    "designation";
+
+                  const applyDesignationTemplate = (
+                    template: DesignationTemplate,
+                    typedValue: string,
+                  ) => {
+                    setValues((prev) => {
+                      const updated: Record<string, string> = {
+                        ...prev,
+                        [designationVariableKey]: typedValue,
+                      };
+
+                      const departmentKey = Object.keys(prev).find(
+                        (key) => key.toLowerCase() === "department",
+                      );
+                      if (departmentKey) {
+                        updated[departmentKey] = template.department;
+                      }
+
+                      const rolesTextareaKey = Object.keys(prev).find((key) =>
+                        key.toLowerCase().includes("role"),
+                      );
+                      if (
+                        rolesTextareaKey &&
+                        template.responsibilities.length > 0
+                      ) {
+                        updated[rolesTextareaKey] =
+                          template.responsibilities.join("\n");
+                      }
+
+                      return updated;
+                    });
+                  };
+
+                  const handleDesignationChange = (typedValue: string) => {
+                    setValues((prev) => ({
+                      ...prev,
+                      [designationVariableKey]: typedValue,
+                    }));
+                  };
+                  // -------------------------------------------------------------------
+
+                  return (
+                    <>
+                      {inputVars.map((variable: string) => {
+                        const isDateField = variable
+                          ?.toLowerCase()
+                          .includes("_date");
+                        const isPeriodField = variable
+                          ?.toLowerCase()
+                          .includes("period");
+                        const isRoleField = variable
+                          ?.toLowerCase()
+                          .includes("role");
+                        const isDesignationField =
+                          variable?.toLowerCase() === "designation";
+
+                        const formattedLabel = variable
+                          ? variable
+                              .replaceAll("_", " ")
+                              .replace(/^\w/, (c) => c.toUpperCase())
+                          : "";
+
+                        // --- Period Calculation Parsing Logic ---
+                        const currentValue = values[variable]
+                          ? String(values[variable]).trim()
+                          : "";
+                        const match = currentValue.match(
+                          /^(\d+)?\s*([a-zA-Z]+)?$/,
+                        );
+                        const currentNum = match && match[1] ? match[1] : "";
+                        const rawUnit =
+                          match && match[2] ? match[2].toLowerCase() : "";
+
+                        const baseUnit = rawUnit.startsWith("day")
+                          ? "days"
+                          : rawUnit.startsWith("week")
+                            ? "weeks"
+                            : rawUnit.startsWith("month")
+                              ? "months"
+                              : rawUnit.startsWith("year")
+                                ? "years"
+                                : "";
+
+                        const handlePeriodChange = (
+                          newNum: string,
+                          newUnit: string,
+                        ) => {
+                          const finalUnit = newUnit || baseUnit || "days";
+                          const numericValue = parseInt(newNum, 10);
+                          const cleanedUnit =
+                            numericValue === 1
+                              ? finalUnit.replace(/s$/, "")
+                              : finalUnit.endsWith("s")
+                                ? finalUnit
+                                : `${finalUnit}s`;
+
+                          const finalizedStringValue = newNum
+                            ? `${newNum} ${cleanedUnit}`.trim()
+                            : "";
+
+                          setValues((prev) => ({
+                            ...prev,
+                            [variable]: finalizedStringValue,
+                          }));
+                        };
+                        // -------------------------------------------------------------------
+
+                        const selectClass =
+                          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%2E%3E%3C%2Fsvg%3E')] bg-[length:14px] bg-[right_12px_center] bg-no-repeat text-foreground pr-8";
+
+                        const inputClass =
+                          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground";
+
+                        const textareaClass =
+                          "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground resize-none";
+
+                        return (
+                          <label key={variable} className="grid gap-1 text-sm">
+                            <span className="font-mono text-[11px] text-cyan-300">
+                              {formattedLabel}
+                            </span>
+
+                            {isDateField ? (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal bg-transparent border-input",
+                                      !values[variable] &&
+                                        "text-muted-foreground",
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <span>
+                                      {formatDateDisplay(values[variable])}
+                                    </span>
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={
+                                      values[variable]
+                                        ? /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(
+                                            String(values[variable]),
+                                          )
+                                          ? new Date(
+                                              String(values[variable]),
+                                            )
+                                          : parseISO(
+                                              String(values[variable]),
+                                            )
+                                        : undefined
+                                    }
+                                    onSelect={(date) =>
+                                      setValues((prev) => ({
+                                        ...prev,
+                                        [variable]: date
+                                          ? format(date, "d MMMM, yyyy")
+                                          : "",
+                                      }))
+                                    }
+                                    autoFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            ) : isPeriodField ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  className={inputClass}
+                                  placeholder="e.g. 90"
+                                  value={currentNum}
+                                  maxLength={3}
+                                  onChange={(e) => {
+                                    const cleanVal = e.target.value.replace(
+                                      /\D/g,
+                                      "",
+                                    );
+                                    handlePeriodChange(cleanVal, baseUnit);
+                                  }}
+                                />
+
+                                <select
+                                  className={selectClass}
+                                  value={baseUnit}
+                                  onChange={(e) =>
+                                    handlePeriodChange(
+                                      currentNum,
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  <option
+                                    value=""
+                                    disabled
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Select Unit
+                                  </option>
+                                  <option
+                                    value="days"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Days
+                                  </option>
+                                  <option
+                                    value="weeks"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Weeks
+                                  </option>
+                                  <option
+                                    value="months"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Months
+                                  </option>
+                                  <option
+                                    value="years"
+                                    className="bg-neutral-900 text-white"
+                                  >
+                                    Years
+                                  </option>
+                                </select>
+                              </div>
+                            ) : isRoleField ? (
+                              <textarea
+                                rows={5}
+                                className={textareaClass}
+                                value={values[variable] ?? ""}
+                                onChange={(event) =>
+                                  setValues((prev) => ({
+                                    ...prev,
+                                    [variable]: event.target.value,
+                                  }))
+                                }
+                                placeholder={`Enter ${variable.replace(/_/g, " ")} details…`}
+                              />
+                            ) : isDesignationField ? (
+                              <DesignationAutocomplete
+                                value={values[variable] ?? ""}
+                                onChange={handleDesignationChange}
+                                onSelectTemplate={(template) =>
+                                  applyDesignationTemplate(
+                                    template,
+                                    template.designation,
+                                  )
+                                }
+                                placeholder="Enter designation…"
+                              />
+                            ) : (
+                              <Input
+                                value={values[variable] ?? ""}
+                                onChange={(event) =>
+                                  setValues((prev) => ({
+                                    ...prev,
+                                    [variable]: event.target.value,
+                                  }))
+                                }
+                                placeholder={`Enter ${variable.replace(/_/g, " ")}…`}
+                              />
+                            )}
+                          </label>
+                        );
+                      })}
+
+                      {computedVars.length > 0 && (
+                        <div className="rounded-xl border border-border bg-white/[0.02] p-3">
+                          <p className="mb-2 text-[11px] text-muted-foreground">
+                            Auto-computed from formulas
+                          </p>
+                          <div className="grid gap-2">
+                            {computedVars.map((variable: string) => (
+                              <div
+                                key={variable}
+                                className="flex items-center gap-2"
+                              >
+                                <span className="w-36 shrink-0 rounded bg-cyan-500/10 px-1.5 py-1 font-mono text-[11px] text-cyan-300">
+                                  {`{{${variable}}}`}
+                                </span>
+                                <Input
+                                  value={computedValues[variable] ?? "—"}
+                                  readOnly
+                                  disabled
+                                  className="text-xs text-muted-foreground bg-transparent"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                <div className="mt-auto pt-2">
+                  <Button
+                    className="w-full"
+                    onClick={() => generateMutation.mutate()}
+                    disabled={
+                      generateMutation.isPending ||
+                      !selectedTemplateId ||
+                      !recipientName.trim() ||
+                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail) ||
+                      !allFilled
+                    }
+                  >
+                    {generateMutation.isPending ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" /> Generating…
+                      </>
+                    ) : (
+                      "Generate document"
+                    )}
+                  </Button>
                 </div>
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </PageTransition>
+
+              <div
+                className={`flex flex-1 flex-col overflow-hidden p-4 ${mobileTab === "variables" ? "hidden md:flex" : "flex"}`}
+              >
+                <p className="mb-2 shrink-0 text-xs text-muted-foreground">
+                  Live preview
+                </p>
+                {selectedTemplate ? (
+                  <div
+                    className="relative flex-1 overflow-auto rounded-xl border border-border bg-white mx-auto"
+                    style={{ width: A4_WIDTH_PX, maxWidth: "100%" }}
+                  >
+                    <PageBreakOverlay pageCount={5} />
+                    <iframe
+                      srcDoc={previewHtml}
+                      className="h-full w-full"
+                      style={{
+                        border: "none",
+                        minHeight: A4_HEIGHT_PX,
+                        width: A4_WIDTH_PX,
+                      }}
+                      title="Document preview"
+                      sandbox="allow-same-origin allow-scripts" // Updated here
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground">
+                    <p className="text-sm">Select a template to preview</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-1 overflow-hidden min-h-0 p-4">
+              <div
+                className="relative flex-1 overflow-auto rounded-xl border border-border bg-white mx-auto"
+                style={{ width: A4_WIDTH_PX, maxWidth: "100%" }}
+              >
+                <PageBreakOverlay pageCount={5} />
+                <iframe
+                  srcDoc={previewHtml}
+                  className="h-full w-full"
+                  style={{
+                    border: "none",
+                    minHeight: A4_HEIGHT_PX,
+                    width: A4_WIDTH_PX,
+                  }}
+                  title="Generated document"
+                  sandbox="allow-same-origin allow-scripts" // Updated here
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={detailOffer !== null}
+        onOpenChange={(open) => !open && setDetailOffer(null)}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Document details</DialogTitle>
+            <DialogDescription>
+              Review document metadata, preview content, and manage status.
+            </DialogDescription>
+          </DialogHeader>
+          {detailOffer ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Recipient</p>
+                  <p className="text-sm font-medium">
+                    {detailOffer.recipientName ?? "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {detailOffer.recipientEmail ?? ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Template</p>
+                  <p className="text-sm font-medium">
+                    {detailOffer.template?.name ?? "—"}
+                    {detailOffer.templateVersion
+                      ? ` (v${detailOffer.templateVersion.version})`
+                      : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Badge variant={offerStatusBadgeVariant(detailOffer.status)}>
+                    {OFFER_STATUS_LABELS[detailOffer.status] ??
+                      detailOffer.status}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Created</p>
+                  <p className="text-sm">
+                    {new Date(detailOffer.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Generated</p>
+                  <p className="text-sm">
+                    {detailOffer.generatedAt
+                      ? new Date(detailOffer.generatedAt).toLocaleString()
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    void handleDownload({
+                      id: detailOffer.id,
+                      recipientName: detailOffer.recipientName ?? null,
+                      templateName: detailOffer.template?.name ?? null,
+                    })
+                  }
+                  disabled={downloading}
+                >
+                  {downloading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Download className="size-4" />
+                  )}
+                  Download PDF
+                </Button>
+                {["SENT", "ACCEPTED", "REJECTED", "CANCELLED"].map((status) => (
+                  <Button
+                    key={status}
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      statusMutation.isPending || detailOffer.status === status
+                    }
+                    onClick={() =>
+                      statusMutation.mutate({ id: detailOffer.id, status })
+                    }
+                  >
+                    Mark {OFFER_STATUS_LABELS[status]}
+                  </Button>
+                ))}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteTarget(detailOffer)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Delete document?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   );
 }
+
+
+
+/** @deprecated Use DocumentsTab via MailersAndDocsPage */
+export const OfferLettersPage = DocumentsTab;

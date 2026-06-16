@@ -39,9 +39,9 @@ const EmployeesPage = lazy(() =>
     default: module.EmployeesPage,
   })),
 );
-const UserManagementPage = lazy(() =>
-  import("@/modules/user-management/UserManagementPage").then((module) => ({
-    default: module.UserManagementPage,
+const EmployeeProfilePage = lazy(() =>
+  import("@/modules/employees/EmployeeProfilePage").then((module) => ({
+    default: module.EmployeeProfilePage,
   })),
 );
 const AttendancePage = lazy(() =>
@@ -69,14 +69,34 @@ const OnboardingPage = lazy(() =>
     default: module.OnboardingPage,
   })),
 );
-const OfferLettersPage = lazy(() =>
-  import("@/modules/offer-letters/OfferLettersPage").then((module) => ({
-    default: module.OfferLettersPage,
+const PreOnboardingPage = lazy(() =>
+  import("@/modules/pre-onboarding/PreOnboardingPage").then((module) => ({
+    default: module.PreOnboardingPage,
   })),
 );
-const TemplatesPage = lazy(() =>
-  import("@/modules/templates/TemplatesPage").then((module) => ({
-    default: module.TemplatesPage,
+const PreOnboardingPortalPage = lazy(() =>
+  import("@/modules/pre-onboarding/PreOnboardingPortalPage").then((module) => ({
+    default: module.PreOnboardingPortalPage,
+  })),
+);
+const FnFSettlementPage = lazy(() =>
+  import("@/modules/fnf-settlement/FnFSettlementPage").then((module) => ({
+    default: module.FnFSettlementPage,
+  })),
+);
+const FnFSettlementDetailPage = lazy(() =>
+  import("@/modules/fnf-settlement/FnFSettlementDetailPage").then((module) => ({
+    default: module.FnFSettlementDetailPage,
+  })),
+);
+const TasksPage = lazy(() =>
+  import("@/modules/tasks/TasksPage").then((module) => ({
+    default: module.TasksPage,
+  })),
+);
+const MailersAndDocsPage = lazy(() =>
+  import("@/modules/mailers-and-docs/MailersAndDocsPage").then((module) => ({
+    default: module.MailersAndDocsPage,
   })),
 );
 const RolesPage = lazy(() =>
@@ -126,6 +146,7 @@ function lazyElement(element: ReactNode) {
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/dashboard" replace /> },
   { path: "/login", element: <LoginPage /> },
+  { path: "/onboarding/:token", element: lazyElement(<PreOnboardingPortalPage />) },
   { path: "/forgot-password", element: lazyElement(<ForgotPasswordPage />) },
   { path: "/reset-password", element: lazyElement(<ResetPasswordPage />) },
   { path: "/session-expired", element: lazyElement(<SessionExpiredPage />) },
@@ -144,7 +165,6 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute
                 permissions={[
-                  permissions.employeeDirectoryRead,
                   permissions.employeeRead,
                   permissions.employeeWrite,
                   permissions.employeeUserManage,
@@ -154,17 +174,34 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/employees",
-                element: lazyElement(<UserManagementPage />),
-              },
-              {
-                path: "/employee-directory",
                 element: lazyElement(<EmployeesPage />),
               },
               {
+                path: "/employees/:id",
+                element: lazyElement(<EmployeeProfilePage />),
+              },
+              {
+                path: "/employee-directory",
+                element: <Navigate to="/employees" replace />,
+              },
+              {
                 path: "/user-management",
-                element: lazyElement(<UserManagementPage />),
+                element: <Navigate to="/employees" replace />,
               },
             ],
+          },
+          {
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.tasksReadSelf,
+                  permissions.tasksReadTeam,
+                  permissions.tasksReadDepartment,
+                  permissions.tasksReadAll,
+                ]}
+              />
+            ),
+            children: [{ path: "/tasks", element: lazyElement(<TasksPage />) }],
           },
           {
             path: "/people",
@@ -179,9 +216,43 @@ export const router = createBrowserRouter([
             element: lazyElement(<AttendancePage />),
           },
           {
-            element: <ProtectedRoute permissions={[permissions.leaveRead]} />,
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.leaveRead,
+                  permissions.leaveWrite,
+                  permissions.leaveApprove,
+                ]}
+              />
+            ),
+            children: [{ path: "/leaves", element: lazyElement(<LeavesPage />) }],
+          },
+          {
+            element: <ProtectedRoute permissions={[permissions.employeeWrite]} />,
             children: [
-              { path: "/leaves", element: lazyElement(<LeavesPage />) },
+              { path: "/onboarding", element: lazyElement(<OnboardingPage />) },
+            ],
+          },
+          {
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.fnfRead,
+                  permissions.fnfWrite,
+                  permissions.fnfApprove,
+                  permissions.fnfManage,
+                ]}
+              />
+            ),
+            children: [
+              {
+                path: "/fnf-settlement",
+                element: lazyElement(<FnFSettlementPage />),
+              },
+              {
+                path: "/fnf-settlement/:id",
+                element: lazyElement(<FnFSettlementDetailPage />),
+              },
             ],
           },
           {
@@ -207,6 +278,22 @@ export const router = createBrowserRouter([
           },
           {
             element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.preOnboardingRead,
+                  permissions.preOnboardingVerify,
+                ]}
+              />
+            ),
+            children: [
+              {
+                path: "/pre-onboarding",
+                element: lazyElement(<PreOnboardingPage />),
+              },
+            ],
+          },
+          {
+            element: (
               <ProtectedRoute permissions={[permissions.employeeWrite]} />
             ),
             children: [
@@ -214,13 +301,22 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <ProtectedRoute permissions={[permissions.jobWrite]} />,
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.mailersDocsRead,
+                  permissions.mailersDocsWrite,
+                  permissions.jobWrite,
+                ]}
+              />
+            ),
             children: [
               {
-                path: "/offer-letters",
-                element: lazyElement(<OfferLettersPage />),
+                path: "/mailers-and-docs",
+                element: lazyElement(<MailersAndDocsPage />),
               },
-              { path: "/templates", element: lazyElement(<TemplatesPage />) },
+              { path: "/offer-letters", element: lazyElement(<Navigate to="/mailers-and-docs" replace />) },
+              { path: "/templates", element: lazyElement(<Navigate to="/mailers-and-docs" replace />) },
             ],
           },
           {
