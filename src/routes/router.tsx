@@ -301,7 +301,15 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <ProtectedRoute permissions={[permissions.jobWrite]} />,
+            element: (
+              <ProtectedRoute
+                permissions={[
+                  permissions.mailersDocsRead,
+                  permissions.mailersDocsWrite,
+                  permissions.jobWrite,
+                ]}
+              />
+            ),
             children: [
               {
                 path: "/mailers-and-docs",

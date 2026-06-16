@@ -44,7 +44,7 @@ export const navigationItems: NavigationItem[] = [
   { label: 'Onboarding', path: '/onboarding', icon: Sparkles, permissions: [permissions.employeeWrite], keywords: ['stepper', 'approval'] },
   { label: 'Full & Final Settlement', path: '/fnf-settlement', icon: Handshake, permissions: [permissions.fnfRead, permissions.fnfWrite, permissions.fnfApprove, permissions.fnfManage], keywords: ['fnf', 'separation', 'exit', 'settlement', 'resignation', 'termination', 'full and final', 'clearance'] },
   { label: 'Tasks', path: '/tasks', icon: ClipboardList, permissions: [permissions.tasksReadSelf, permissions.tasksReadTeam, permissions.tasksReadDepartment, permissions.tasksReadAll], keywords: ['todo', 'kanban', 'work items', 'task management'] },
-  { label: 'Mailers & Docs', path: '/mailers-and-docs', icon: FileBadge, permissions: [permissions.jobWrite], keywords: ['offer', 'pdf', 'generator', 'templates', 'documents', 'mailers'] },
+  { label: 'Mailers & Docs', path: '/mailers-and-docs', icon: FileBadge, permissions: [permissions.mailersDocsRead, permissions.mailersDocsWrite, permissions.jobWrite], keywords: ['offer', 'pdf', 'generator', 'templates', 'documents', 'mailers'] },
   { label: 'Roles', path: '/roles', icon: ShieldCheck, permissions: [permissions.rbacManage], keywords: ['rbac', 'assignment'] },
   { label: 'Permissions', path: '/permissions', icon: KeyRound, permissions: [permissions.rbacManage], keywords: ['matrix', 'policy'] },
   { label: 'Notifications', path: '/notifications', icon: Bell, permissions: [], keywords: ['alerts', 'preferences'] },

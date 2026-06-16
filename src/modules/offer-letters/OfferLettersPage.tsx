@@ -54,6 +54,7 @@ import {
   OFFER_STATUS_LABELS,
   stripScriptsForPreview,
 } from "./offer-letter.utils";
+import { companyRoles } from "../../utils/roles.config.ts";
 
 type Template = {
   id: string;
@@ -121,6 +122,11 @@ export function DocumentsTab({
   const [mobileTab, setMobileTab] = useState<"variables" | "preview">(
     "variables",
   );
+
+  const [roleValues, setRoleValues] = useState<Record<string, string>>({
+    designation: "",
+    employee_role: "",
+  });
 
   const listQuery = useResourceQuery<OfferLetter>(
     "offer-letters",
@@ -566,24 +572,25 @@ export function DocumentsTab({
                     ))}
                   </select>
                 </label>
+
                 {(() => {
                   const formulas = selectedTemplate?.formulas ?? {};
                   const computedNames = getComputedVariableNames(formulas);
 
                   const inputVars =
                     selectedTemplate?.variables.filter(
-                      (v) => !computedNames.has(v),
+                      (v: string) => !computedNames.has(v),
                     ) ?? [];
 
                   const computedVars =
-                    selectedTemplate?.variables.filter((v) =>
+                    selectedTemplate?.variables.filter((v: string) =>
                       computedNames.has(v),
                     ) ?? [];
 
                   const computedValues =
                     Object.keys(formulas).length > 0
-                      ? applyFormulas(values, formulas)
-                      : values;
+                      ? applyFormulas(roleValues, formulas)
+                      : roleValues;
 
                   // Helper function to format the display date contextually
                   const formatDateDisplay = (
@@ -601,15 +608,178 @@ export function DocumentsTab({
                     }
                   };
 
+                  // --- Fuzzy Matching Designation Logic ---
+                  // Maps loose inputs like "UI/UX lead" -> "Senior UI/UX Designer" config
+                  const findBestMatchingRole = (typedTitle: string) => {
+                    if (!typedTitle) return null;
+
+                    const cleanInput = typedTitle.toLowerCase().trim();
+
+                    // 1. Identify Core Track Keyword Matches (Expanded with your 20 new roles)
+                    let trackKeywords: string[] = [];
+                    if (
+                      cleanInput.includes("ui") ||
+                      cleanInput.includes("ux") ||
+                      cleanInput.includes("design")
+                    ) {
+                      trackKeywords = ["ui", "ux", "designer"];
+                    } else if (
+                      cleanInput.includes("qa") ||
+                      cleanInput.includes("test") ||
+                      cleanInput.includes("quality")
+                    ) {
+                      trackKeywords = ["qa", "quality", "assurance"];
+                    } else if (
+                      cleanInput.includes("project") ||
+                      cleanInput.includes("product")
+                    ) {
+                      trackKeywords = ["project", "product", "manager"];
+                    } else if (
+                      cleanInput.includes("devops") ||
+                      cleanInput.includes("infrastructure") ||
+                      cleanInput.includes("cloud")
+                    ) {
+                      trackKeywords = ["devops", "infrastructure"];
+                    } else if (
+                      cleanInput.includes("marketing") ||
+                      cleanInput.includes("seo") ||
+                      cleanInput.includes("brand")
+                    ) {
+                      trackKeywords = ["marketing", "specialist", "associate"];
+                    } else if (
+                      cleanInput.includes("sales") ||
+                      cleanInput.includes("account executive")
+                    ) {
+                      trackKeywords = ["sales", "account", "executive"];
+                    } else if (
+                      cleanInput.includes("bde") ||
+                      cleanInput.includes("business development")
+                    ) {
+                      trackKeywords = ["business", "development", "executive"];
+                    } else if (
+                      cleanInput.includes("hr") ||
+                      cleanInput.includes("human") ||
+                      cleanInput.includes("talent")
+                    ) {
+                      trackKeywords = [
+                        "hr",
+                        "human",
+                        "resources",
+                        "generalist",
+                      ];
+                    } else if (
+                      cleanInput.includes("success") ||
+                      cleanInput.includes("csm")
+                    ) {
+                      trackKeywords = ["customer", "success", "manager"];
+                    } else if (
+                      cleanInput.includes("finance") ||
+                      cleanInput.includes("accounts") ||
+                      cleanInput.includes("analyst")
+                    ) {
+                      trackKeywords = ["finance", "analyst", "manager"];
+                    } else if (
+                      cleanInput.includes("engineer") ||
+                      cleanInput.includes("developer") ||
+                      cleanInput.includes("software")
+                    ) {
+                      trackKeywords = ["software", "engineer"];
+                    } else if (cleanInput.includes("manager")) {
+                      // General track-backstop rule for standalone manager updates
+                      trackKeywords = ["manager"];
+                    }
+
+                    if (trackKeywords.length === 0) return null;
+
+                    // 2. Identify Target Seniority Tier Keyword Match
+                    let isSeniorOrLead = false;
+                    if (
+                      cleanInput.includes("senior") ||
+                      cleanInput.includes("lead") ||
+                      cleanInput.includes("principal") ||
+                      cleanInput.includes("sr") ||
+                      cleanInput.includes("head") ||
+                      cleanInput.includes("director") ||
+                      (cleanInput.includes("manager") &&
+                        !cleanInput.includes("associate"))
+                    ) {
+                      isSeniorOrLead = true;
+                    }
+
+                    // 3. Score and find the best config fit from companyRoles config array
+                    let bestMatch = null;
+                    let highestScore = 0;
+
+                    companyRoles.forEach((role) => {
+                      const roleTitleLower = role.designation.toLowerCase();
+                      let score = 0;
+
+                      // Track match score points
+                      trackKeywords.forEach((kw) => {
+                        if (roleTitleLower.includes(kw)) score += 2;
+                      });
+
+                      // Seniority tier modifier points
+                      const isRoleSeniorOrLead =
+                        roleTitleLower.includes("senior") ||
+                        roleTitleLower.includes("lead") ||
+                        roleTitleLower.includes("principal") ||
+                        roleTitleLower.includes("director") ||
+                        (roleTitleLower.includes("manager") &&
+                          !roleTitleLower.includes("associate"));
+
+                      if (isSeniorOrLead === isRoleSeniorOrLead) {
+                        score += 3; // Heavily weight matching seniority profiles
+                      }
+
+                      if (score > highestScore) {
+                        highestScore = score;
+                        bestMatch = role;
+                      }
+                    });
+
+                    // Enforce a minimum safety score threshold to avoid false-positives
+                    return highestScore >= 5 ? bestMatch : null;
+                  };
+
+                  const handleDesignationChange = (typedValue: string) => {
+                    const matchedRoleConfig = findBestMatchingRole(typedValue);
+
+                    setRoleValues((prev) => {
+                      const updated = { ...prev, designation: typedValue };
+
+                      // If a smart fuzzy match is resolved, inject its mapped responsibilities text string safely
+                      if (
+                        matchedRoleConfig &&
+                        matchedRoleConfig.responsibilities
+                      ) {
+                        const rolesTextareaKey = Object.keys(prev).find((key) =>
+                          key.toLowerCase().includes("role"),
+                        );
+                        if (rolesTextareaKey) {
+                          updated[rolesTextareaKey] =
+                            matchedRoleConfig.responsibilities.join("\n");
+                        }
+                      }
+                      return updated;
+                    });
+                  };
+                  // -------------------------------------------------------------------
+
                   return (
                     <>
-                      {inputVars.map((variable) => {
+                      {inputVars.map((variable: string) => {
                         const isDateField = variable
                           ?.toLowerCase()
                           .includes("_date");
                         const isPeriodField = variable
                           ?.toLowerCase()
                           .includes("period");
+                        const isRoleField = variable
+                          ?.toLowerCase()
+                          .includes("role");
+                        const isDesignationField =
+                          variable?.toLowerCase() === "designation";
 
                         const formattedLabel = variable
                           ? variable
@@ -618,11 +788,9 @@ export function DocumentsTab({
                           : "";
 
                         // --- Period Calculation Parsing Logic ---
-                        const currentValue = values[variable]
-                          ? String(values[variable]).trim()
+                        const currentValue = roleValues[variable]
+                          ? String(roleValues[variable]).trim()
                           : "";
-
-                        // Regular expression captures digits and text separately
                         const match = currentValue.match(
                           /^(\d+)?\s*([a-zA-Z]+)?$/,
                         );
@@ -630,7 +798,6 @@ export function DocumentsTab({
                         const rawUnit =
                           match && match[2] ? match[2].toLowerCase() : "";
 
-                        // Standardize the singular/plural base strings safely
                         const baseUnit = rawUnit.startsWith("day")
                           ? "days"
                           : rawUnit.startsWith("week")
@@ -645,10 +812,7 @@ export function DocumentsTab({
                           newNum: string,
                           newUnit: string,
                         ) => {
-                          // Fallback to "days" if user types a number before choosing a unit
                           const finalUnit = newUnit || baseUnit || "days";
-
-                          // Dynamic singular/plural string suffix cleanups based on numeric input
                           const numericValue = parseInt(newNum, 10);
                           const cleanedUnit =
                             numericValue === 1
@@ -657,24 +821,25 @@ export function DocumentsTab({
                                 ? finalUnit
                                 : `${finalUnit}s`;
 
-                          // Formats the pure clean string expected by your backend state schema
                           const finalizedStringValue = newNum
                             ? `${newNum} ${cleanedUnit}`.trim()
                             : "";
 
-                          setValues((prev) => ({
+                          setRoleValues((prev) => ({
                             ...prev,
                             [variable]: finalizedStringValue,
                           }));
                         };
-                        // ----------------------------------------
+                        // -------------------------------------------------------------------
 
-                        // Reusable select layout classes matching standard shadcn/ui Input
                         const selectClass =
                           "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%2E%3E%3C%2Fsvg%3E')] bg-[length:14px] bg-[right_12px_center] bg-no-repeat text-foreground pr-8";
 
                         const inputClass =
                           "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground";
+
+                        const textareaClass =
+                          "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground resize-none";
 
                         return (
                           <label key={variable} className="grid gap-1 text-sm">
@@ -689,13 +854,13 @@ export function DocumentsTab({
                                     variant={"outline"}
                                     className={cn(
                                       "w-full justify-start text-left font-normal bg-transparent border-input",
-                                      !values[variable] &&
+                                      !roleValues[variable] &&
                                         "text-muted-foreground",
                                     )}
                                   >
                                     <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                                     <span>
-                                      {formatDateDisplay(values[variable])}
+                                      {formatDateDisplay(roleValues[variable])}
                                     </span>
                                   </Button>
                                 </PopoverTrigger>
@@ -706,16 +871,20 @@ export function DocumentsTab({
                                   <Calendar
                                     mode="single"
                                     selected={
-                                      values[variable]
+                                      roleValues[variable]
                                         ? /^\d{1,2}\s[A-Za-z]+\,\s\d{4}$/.test(
-                                            String(values[variable]),
+                                            String(roleValues[variable]),
                                           )
-                                          ? new Date(String(values[variable]))
-                                          : parseISO(String(values[variable]))
+                                          ? new Date(
+                                              String(roleValues[variable]),
+                                            )
+                                          : parseISO(
+                                              String(roleValues[variable]),
+                                            )
                                         : undefined
                                     }
                                     onSelect={(date) =>
-                                      setValues((prev) => ({
+                                      setRoleValues((prev) => ({
                                         ...prev,
                                         [variable]: date
                                           ? format(date, "d MMMM, yyyy")
@@ -728,16 +897,14 @@ export function DocumentsTab({
                               </Popover>
                             ) : isPeriodField ? (
                               <div className="flex gap-2">
-                                {/* Numeric Text Input */}
                                 <input
                                   type="text"
                                   inputMode="numeric"
                                   className={inputClass}
                                   placeholder="e.g. 90"
                                   value={currentNum}
-                                  maxLength={3} // Locks keystrokes at a maximum of 3 characters
+                                  maxLength={3}
                                   onChange={(e) => {
-                                    // Instantly cleans away letters, decimals, spaces, and signs
                                     const cleanVal = e.target.value.replace(
                                       /\D/g,
                                       "",
@@ -746,7 +913,6 @@ export function DocumentsTab({
                                   }}
                                 />
 
-                                {/* Period Metric Dropdown Select Selector */}
                                 <select
                                   className={selectClass}
                                   value={baseUnit}
@@ -790,11 +956,32 @@ export function DocumentsTab({
                                   </option>
                                 </select>
                               </div>
+                            ) : isRoleField ? (
+                              <textarea
+                                rows={5}
+                                className={textareaClass}
+                                value={roleValues[variable] ?? ""}
+                                onChange={(event) =>
+                                  setRoleValues((prev) => ({
+                                    ...prev,
+                                    [variable]: event.target.value,
+                                  }))
+                                }
+                                placeholder={`Enter ${variable.replace(/_/g, " ")} details…`}
+                              />
+                            ) : isDesignationField ? (
+                              <Input
+                                value={roleValues[variable] ?? ""}
+                                onChange={(event) =>
+                                  handleDesignationChange(event.target.value)
+                                }
+                                placeholder={`Enter designation…`}
+                              />
                             ) : (
                               <Input
-                                value={values[variable] ?? ""}
+                                value={roleValues[variable] ?? ""}
                                 onChange={(event) =>
-                                  setValues((prev) => ({
+                                  setRoleValues((prev) => ({
                                     ...prev,
                                     [variable]: event.target.value,
                                   }))
@@ -812,7 +999,7 @@ export function DocumentsTab({
                             Auto-computed from formulas
                           </p>
                           <div className="grid gap-2">
-                            {computedVars.map((variable) => (
+                            {computedVars.map((variable: string) => (
                               <div
                                 key={variable}
                                 className="flex items-center gap-2"
@@ -834,6 +1021,7 @@ export function DocumentsTab({
                     </>
                   );
                 })()}
+
                 <div className="mt-auto pt-2">
                   <Button
                     className="w-full"
@@ -1030,6 +1218,8 @@ export function DocumentsTab({
     </>
   );
 }
+
+
 
 /** @deprecated Use DocumentsTab via MailersAndDocsPage */
 export const OfferLettersPage = DocumentsTab;
