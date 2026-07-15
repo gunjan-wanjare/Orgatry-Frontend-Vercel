@@ -58,7 +58,10 @@ jobs:
 
       - name: Get Github Action IP
         id: ip
-        uses: haythem/public-ip@v1.3
+        run: |
+          IP=$(curl -s https://checkip.amazonaws.com)
+          echo "ipv4=$IP" >> $GITHUB_OUTPUT
+          echo "Runner IP: $IP"
 
       - name: Debug IP and SG
         run: |
