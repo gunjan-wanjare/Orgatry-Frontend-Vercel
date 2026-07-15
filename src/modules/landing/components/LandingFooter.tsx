@@ -1,15 +1,11 @@
 import { motion } from 'framer-motion';
-import { type FormEvent, useId } from 'react';
-import footerEmailIcon from '@/modules/landing/assets/icons/footer-email.svg';
 import { fadeInUp, staggerContainer } from '@/modules/landing/animations/landingMotion';
 import {
   landingFooter,
   landingFooterColumns,
 } from '@/modules/landing/constants/content';
 import { scrollToSectionId } from '@/modules/landing/hooks/useSmoothScroll';
-import { LandingButton } from '@/modules/landing/shared/LandingButton';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+
 
 
 const FOOTER_OVERLAP = 298;
@@ -29,11 +25,7 @@ function handleNavClick(href: string) {
 }
 
 function NewsletterBlock() {
-  const emailId = useId();
 
-  function handleSubscribe(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-  }
 
   return (
     <div className="flex w-full max-w-[439px] flex-col gap-5">
