@@ -31,7 +31,7 @@ export function LandingRouteFallback() {
           className="m-0 whitespace-nowrap text-center leading-none text-[#168540] [font-family:Inter,sans-serif]"
           style={{ fontSize: splashMark.captionSize }}
         >
-          A YAKA Enterprise
+          A YAKA Brand
         </p>
       </div>
 

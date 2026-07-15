@@ -87,7 +87,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         </motion.div>
 
         <p className="relative z-10 text-xs text-[#8b8b8b] [font-family:Inter,sans-serif]">
-          A YAKA Enterprise product
+          A YAKA Brand product
         </p>
       </section>
 

@@ -48,6 +48,7 @@ function NewsletterBlock() {
         <p className="text-[36px] font-bold leading-8 tracking-[-0.6px] text-[#15803d] [font-family:Inter,sans-serif]">
           {landingFooter.brand}
         </p>
+        <p className="text-[#15803d] text-sm">A <span className="font-bold">YAKA</span> Brand</p>
         <div className="flex flex-col gap-2">
           <p className="text-[15px] font-semibold text-[#171717] [font-family:Manrope,sans-serif]">
             {landingFooter.subscribeTitle}
@@ -153,41 +154,7 @@ function FooterLinkColumns() {
   );
 }
 
-const SOCIAL_ICONS: Record<string, ComponentType<{ className?: string; 'aria-hidden'?: boolean }>> = {
-  facebook: Facebook,
-  twitter: Twitter,
-  instagram: Instagram,
-  youtube: Youtube
-};
 
-function SocialLinks() {
-  return (
-    <ul className="m-0 flex list-none items-center gap-4 p-0" aria-label="Social media">
-      {landingSocialLinks.map((social) => {
-        const Icon = SOCIAL_ICONS[social.id] ?? Facebook;
-        return (
-          <li key={social.id}>
-            <motion.a
-              href={social.href}
-              aria-label={social.label}
-              className={cn(
-                'inline-flex size-10 items-center justify-center rounded-full',
-                'border border-[#22c55e]/35 bg-[rgba(34,197,94,0.12)] text-[#15803d]',
-                'shadow-[0_1px_4px_rgba(21,128,61,0.12)] transition-[background-color,box-shadow,border-color,color] duration-200',
-                'hover:border-[#22c55e] hover:bg-[rgba(34,197,94,0.22)] hover:text-[#136d34] hover:shadow-[0_4px_14px_rgba(34,197,94,0.28)]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803d]/45'
-              )}
-              whileHover={{ scale: 1.06 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Icon className="size-[18px]" aria-hidden />
-            </motion.a>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 export function LandingFooter() {
   return (
@@ -227,7 +194,6 @@ export function LandingFooter() {
             <p className="text-[13px] font-normal text-[#595959] [font-family:Inter,sans-serif]">
               {landingFooter.copyright}
             </p>
-            <SocialLinks />
           </motion.div>
         </div>
       </motion.div>

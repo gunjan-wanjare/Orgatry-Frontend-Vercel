@@ -18,7 +18,6 @@ const SIZE_MAP: Record<Exclude<YakaMarkSize, 'splash'>, { w: number; h: number }
 type YakaMarkMotionProps = {
   size: YakaMarkSize;
   className?: string;
-  /** Show “A YAKA Enterprise” caption (hero / splash only) */
   showCaption?: boolean;
 };
 
@@ -80,9 +79,9 @@ export const YakaMarkMotion = memo(function YakaMarkMotion({
       {showCaption ? (
         <p
           className="m-0 whitespace-nowrap text-center leading-none text-[#168540] [font-family:Inter,sans-serif]"
-          style={{ fontSize: isSplash ? splashMark.captionSize : vs(9.09) }}
+          style={{ fontSize: isSplash ? splashMark.captionSize : vs(12.09) }}
         >
-          A YAKA Enterprise
+          A <span className="font-bold">YAKA</span> Brand
         </p>
       ) : null}
     </motion.div>
