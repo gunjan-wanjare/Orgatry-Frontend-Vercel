@@ -13,7 +13,6 @@ import { LandingFeatureCard } from '@/modules/landing/cards/LandingFeatureCard';
 import { landingTokens } from '@/modules/landing/constants/tokens';
 import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
 import { cn } from '@/lib/utils';
-
 import { vs } from '@/modules/landing/utils/scale';
 
 /** Figma `1:1332` — phone column 576×717 (×0.95 visual scale). */
@@ -69,15 +68,15 @@ function FeatureList({ fluid }: { fluid?: boolean }) {
         const descriptionClassName =
           !fluid && 'descriptionClassName' in feature ? feature.descriptionClassName : undefined;
         return (
-        <LandingFeatureCard
-          key={feature.id}
-          variant="inline"
-          iconSrc={feature.icon}
-          iconSize={24}
-          title={feature.title}
-          description={feature.description}
-          {...(descriptionClassName ? { descriptionClassName } : {})}
-        />
+          <LandingFeatureCard
+            key={feature.id}
+            variant="inline"
+            iconSrc={feature.icon}
+            iconSize={24}
+            title={feature.title}
+            description={feature.description}
+            {...(descriptionClassName ? { descriptionClassName } : {})}
+          />
         );
       })}
     </motion.div>
@@ -104,10 +103,6 @@ const PhoneMockup = memo(function PhoneMockup({ className }: { className?: strin
   );
 });
 
-/**
- * About Us — Figma `1:1292` (“How It Works!” / Who We Are!).
- * Left copy @ `100,78` · phone column @ `764,0` · section `1440×717` · `#FFFFFF`.
- */
 export function AboutSection() {
   return (
     <section
@@ -117,7 +112,7 @@ export function AboutSection() {
       className="relative scroll-mt-28 overflow-x-hidden bg-white"
       style={{ marginTop: landingTokens.sectionGapLg }}
     >
-      {/* Desktop artboard */}
+      {/* Desktop artboard (Strictly 1440px and up) */}
       <div
         className="relative mx-auto hidden min-[1440px]:block"
         style={{ width: landingTokens.artboardWidth, height: landingTokens.aboutHeight }}
@@ -172,10 +167,12 @@ export function AboutSection() {
         </motion.div>
       </div>
 
-      {/* Tablet / mobile */}
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-12 px-6 py-16 min-[1440px]:hidden md:px-16">
+      {/* Fluid Responsive container (< 1440px down to Mobile) */}
+      {/* lg:flex-row keeps them side-by-side down to 1024px; flex-col stacks them below 1024px */}
+      <div className="mx-auto flex max-w-[1440px] flex-col lg:flex-row lg:items-center lg:justify-between gap-12 px-6 py-16 min-[1440px]:hidden md:px-16">
+        
         <motion.div
-          className="flex max-w-[505px] flex-col items-start gap-10"
+          className="flex w-full lg:max-w-[50%] flex-col items-start gap-10"
           variants={revealFromLeft}
           initial="hidden"
           whileInView="visible"
@@ -195,7 +192,11 @@ export function AboutSection() {
         </motion.div>
 
         <motion.div
-          className="mx-auto w-full max-w-[576px]"
+          /* Controls the image size dynamically:
+            - Caps maximum size on tablets/small laptops (max-w-[400px] / max-w-[45%])
+            - Scales up safely on mobile viewports (max-w-[576px])
+          */
+          className="mx-auto w-full max-w-[440px] lg:max-w-[42%] xl:max-w-[48%] shrink-0"
           variants={revealFromRight}
           initial="hidden"
           whileInView="visible"
@@ -205,8 +206,6 @@ export function AboutSection() {
             <img
               src={aboutPhoneMockup}
               alt="Orgatry mobile app showing payroll summary, send and receive actions, and recent transactions"
-              width={PHONE_COL_W}
-              height={PHONE_COL_H}
               loading="lazy"
               decoding="async"
               className="absolute inset-0 size-full object-contain object-top"

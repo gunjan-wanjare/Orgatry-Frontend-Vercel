@@ -11,11 +11,6 @@ import { LandingButton } from '@/modules/landing/shared/LandingButton';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-/**
- * Footer — Figma `1:1565` / `1:1566`.
- * Gray area `#f0f0f2` · `1440×869` · overlaps Contact panel by `298px` (`-mt-[298px]`).
- * Content pad-top tuned for tighter premium spacing while keeping contact clearance.
- */
 
 const FOOTER_OVERLAP = 298;
 const CONTENT_PAD_TOP = 392;
@@ -47,60 +42,11 @@ function NewsletterBlock() {
           {landingFooter.brand}
         </p>
         <p className="text-[#15803d] text-sm">A <span className="font-bold">YAKA</span> Brand</p>
-        <div className="flex flex-col gap-2">
-          <p className="text-[15px] font-semibold text-[#171717] [font-family:Manrope,sans-serif]">
-            {landingFooter.subscribeTitle}
-          </p>
-          <p className="text-sm font-normal leading-relaxed text-[#595959] [font-family:Inter,sans-serif]">
-            {landingFooter.subscribeDescription}
-          </p>
-        </div>
+        
       </div>
 
       <div className="flex w-full flex-col gap-3.5">
-        <form
-          onSubmit={handleSubscribe}
-          className="flex w-full max-w-[439px] flex-col gap-3 sm:h-[66px] sm:flex-row sm:items-center sm:justify-between sm:gap-[92px] sm:rounded-[100px] sm:bg-white sm:py-2 sm:pl-3.5 sm:pr-3.5"
-          aria-label="Newsletter signup"
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[100px] bg-white py-2 pl-3.5 pr-3.5 sm:rounded-none sm:bg-transparent sm:p-0">
-            <span
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-[#f6f7f9]"
-              aria-hidden
-            >
-              <img
-                src={footerEmailIcon}
-                alt=""
-                width={24}
-                height={24}
-                className="size-6 object-contain"
-                decoding="async"
-              />
-            </span>
-            <label htmlFor={emailId} className="sr-only">
-              Email address
-            </label>
-            <Input
-              id={emailId}
-              name="newsletter-email"
-              type="email"
-              required
-              placeholder={landingFooter.emailPlaceholder}
-              className={cn(
-                'h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-[#171717] shadow-none',
-                '[font-family:Inter,sans-serif] placeholder:text-[#595959]',
-                'focus:border-transparent focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#15803d]/35 focus-visible:ring-offset-2'
-              )}
-            />
-          </div>
-          <LandingButton
-            type="submit"
-            variant="dark"
-            className="h-[50px] w-full shrink-0 rounded-[100px] px-8 py-[14px] text-base font-medium [font-family:Manrope,sans-serif] sm:w-auto"
-          >
-            {landingFooter.subscribeButton}
-          </LandingButton>
-        </form>
+
 
         <p className="text-[11px] font-normal leading-normal text-[#595959] [font-family:Inter,sans-serif]">
           {landingFooter.privacyPrefix}
