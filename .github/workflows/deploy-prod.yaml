@@ -176,8 +176,10 @@ jobs:
           chmod 600 .env &&
           echo 'Starting deployment...' &&
           docker network inspect shared-network >/dev/null 2>&1 || docker network create shared-network &&
+          docker-compose down || true &&
+
           docker-compose pull &&
-          docker-compose up -d --force-recreate &&
+          docker-compose up -d &&
           docker image prune -af &&
           echo 'Deployment complete'
           "
