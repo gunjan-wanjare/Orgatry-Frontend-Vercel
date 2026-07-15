@@ -1,0 +1,4 @@
+﻿src/modules/landing/components/HeroSection.tsx(440,10): error TS2375: Type '{ children: Element[]; className: string; variants: Variants; initial: string; animate: string | undefined; whileInView: string | undefined; viewport: { once: true; amount: number; }; }' is not assignable to type 'Omit<HTMLMotionProps<"div">, "ref">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'animate' are incompatible.
+    Type 'string | undefined' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls'.
+      Type 'undefined' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls'.

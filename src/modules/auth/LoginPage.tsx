@@ -1,17 +1,28 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { LockKeyhole, LogIn } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Loader2, LogIn } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/forms/FormField';
 import { authApi } from '@/services/api/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { loginSchema, type LoginFormValues } from '@/schemas/auth.schemas';
+import { LandingButton } from '@/modules/landing/shared/LandingButton';
 import { AuthLayout } from './AuthLayout';
+import { authCardClassName, authInputClassName, authLabelClassName, authLinkClassName } from './auth-ui';
+import { cn } from '@/lib/utils';
+
+const cardMotion = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }
+  }
+};
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -35,7 +46,9 @@ export function LoginPage() {
     onSuccess: (session) => {
       setSession(session);
       toast.success('Welcome back', { description: 'Session established securely.' });
-      const target = session.user.forcePasswordReset ? '/change-password' : ((location.state as { from?: Location } | null)?.from?.pathname ?? '/dashboard');
+      const target = session.user.forcePasswordReset
+        ? '/change-password'
+        : ((location.state as { from?: Location } | null)?.from?.pathname ?? '/dashboard');
       navigate(target, { replace: true });
     },
     onError: (error) => {
@@ -59,33 +72,74 @@ export function LoginPage() {
 
   return (
     <AuthLayout>
-      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-        <Card className="gradient-border">
-          <CardHeader>
-            <div className="mb-2 grid size-12 place-items-center rounded-xl bg-primary/10 text-cyan-200">
-              <LockKeyhole className="size-5" />
-            </div>
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>Use your email or employee ID and password.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="grid gap-4" onSubmit={form.handleSubmit(submit)}>
-              <FormField label="Email / Employee ID" name="userId" register={form.register} error={form.formState.errors.userId?.message} placeholder="Email or Employee ID" />
-              <FormField label="Password" name="password" type="password" register={form.register} error={form.formState.errors.password?.message} placeholder="Password" />
-              <Button className="mt-2" type="submit" disabled={mutation.isPending}>
-                <LogIn className="size-4" />
-                {mutation.isPending ? 'Signing in...' : 'Sign in'}
-              </Button>
-            </form>
-            <div className="mt-5 flex items-center justify-between text-sm">
-              <Link className="cursor-pointer text-cyan-200 hover:text-cyan-100" to="/forgot-password">
-                Forgot password?
-              </Link>
-              <span className="text-muted-foreground">Dark mode only</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <motion.div
+        className={authCardClassName}
+        variants={cardMotion}
+        initial="hidden"
+        animate="visible"
+      >
+        <header className="mb-7">
+          <h2 className="m-0 text-[28px] font-bold leading-tight text-[#171717] [font-family:Manrope,sans-serif]">
+            Sign in
+          </h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-[#595959] [font-family:Inter,sans-serif]">
+            Use your email or employee ID and password to access Orgatry.
+          </p>
+        </header>
+
+        <form className="grid gap-5" onSubmit={form.handleSubmit(submit)} noValidate>
+          <FormField
+            label="Email / Employee ID"
+            name="userId"
+            register={form.register}
+            error={form.formState.errors.userId?.message}
+            placeholder="Email or Employee ID"
+            autoComplete="username"
+            labelClassName={authLabelClassName}
+            inputClassName={authInputClassName}
+          />
+          <FormField
+            label="Password"
+            name="password"
+            type="password"
+            register={form.register}
+            error={form.formState.errors.password?.message}
+            placeholder="Password"
+            autoComplete="current-password"
+            labelClassName={authLabelClassName}
+            inputClassName={authInputClassName}
+          />
+
+          <motion.div whileHover={{ scale: mutation.isPending ? 1 : 1.01 }} whileTap={{ scale: 0.99 }}>
+            <LandingButton
+              type="submit"
+              variant="primary"
+              disabled={mutation.isPending}
+              className={cn(
+                'mt-1 w-full shadow-[0_8px_24px_rgba(34,197,94,0.28)]',
+                'focus-visible:ring-offset-white'
+              )}
+              aria-label={mutation.isPending ? 'Signing in' : 'Sign in'}
+            >
+              {mutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <LogIn className="size-4" aria-hidden />
+              )}
+              {mutation.isPending ? 'Signing in...' : 'Sign in'}
+            </LandingButton>
+          </motion.div>
+        </form>
+
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <Link className={authLinkClassName} to="/forgot-password">
+            Forgot password?
+          </Link>
+          <Link className="text-sm text-[#8b8b8b] transition-colors hover:text-[#171717] [font-family:Inter,sans-serif]" to="/">
+            Back to home
+          </Link>
+        </div>
+      </motion.div>
     </AuthLayout>
   );
 }

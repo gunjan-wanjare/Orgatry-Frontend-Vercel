@@ -1,6 +1,7 @@
 import type { FieldValues, Path, UseFormRegister } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 type FormFieldProps<T extends FieldValues> = {
   label: string;
@@ -11,9 +12,25 @@ type FormFieldProps<T extends FieldValues> = {
   textarea?: boolean;
   placeholder?: string | undefined;
   autoComplete?: string | undefined;
+  /** Optional UI-only class overrides (does not affect RHF register). */
+  className?: string | undefined;
+  labelClassName?: string | undefined;
+  inputClassName?: string | undefined;
 };
 
-export function FormField<T extends FieldValues>({ label, name, register, error, type = 'text', textarea, placeholder, autoComplete }: FormFieldProps<T>) {
+export function FormField<T extends FieldValues>({
+  label,
+  name,
+  register,
+  error,
+  type = 'text',
+  textarea,
+  placeholder,
+  autoComplete,
+  className,
+  labelClassName,
+  inputClassName
+}: FormFieldProps<T>) {
   const inputProps = {
     id: name,
     placeholder,
@@ -22,10 +39,14 @@ export function FormField<T extends FieldValues>({ label, name, register, error,
   };
 
   return (
-    <label className="grid gap-2 text-sm">
-      <span className="font-medium text-foreground">{label}</span>
-      {textarea ? <Textarea {...inputProps} /> : <Input type={type} {...inputProps} />}
-      {error ? <span className="text-xs text-rose-300">{error}</span> : null}
+    <label className={cn('grid gap-2 text-sm', className)}>
+      <span className={cn('font-medium text-foreground', labelClassName)}>{label}</span>
+      {textarea ? (
+        <Textarea {...inputProps} className={inputClassName} />
+      ) : (
+        <Input type={type} {...inputProps} className={inputClassName} />
+      )}
+      {error ? <span className="text-xs text-rose-600">{error}</span> : null}
     </label>
   );
 }

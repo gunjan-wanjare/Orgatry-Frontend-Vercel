@@ -5,7 +5,13 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { PageSkeleton } from "@/components/loaders/PageSkeleton";
 import { permissions } from "@/constants/permissions";
 import { LoginPage } from "@/modules/auth/LoginPage";
+import { LandingRouteFallback } from "@/modules/landing/components/LandingRouteFallback";
 
+const LandingPage = lazy(() =>
+  import("@/modules/landing/LandingPage").then((module) => ({
+    default: module.LandingPage,
+  })),
+);
 const AppShell = lazy(() =>
   import("@/layouts/AppShell").then((module) => ({ default: module.AppShell })),
 );
@@ -143,8 +149,17 @@ function lazyElement(element: ReactNode) {
   );
 }
 
+/** Public landing — white splash fallback only (never dashboard PageSkeleton). */
+function landingElement(element: ReactNode) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<LandingRouteFallback />}>{element}</Suspense>
+    </ErrorBoundary>
+  );
+}
+
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/dashboard" replace /> },
+  { path: "/", element: landingElement(<LandingPage />) },
   { path: "/login", element: <LoginPage /> },
   { path: "/onboarding/:token", element: lazyElement(<PreOnboardingPortalPage />) },
   { path: "/forgot-password", element: lazyElement(<ForgotPasswordPage />) },
