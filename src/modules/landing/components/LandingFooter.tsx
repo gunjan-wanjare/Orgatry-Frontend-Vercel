@@ -1,12 +1,10 @@
-import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { type FormEvent, useId, type ComponentType } from 'react';
+import { type FormEvent, useId } from 'react';
 import footerEmailIcon from '@/modules/landing/assets/icons/footer-email.svg';
 import { fadeInUp, staggerContainer } from '@/modules/landing/animations/landingMotion';
 import {
   landingFooter,
   landingFooterColumns,
-  landingSocialLinks
 } from '@/modules/landing/constants/content';
 import { scrollToSectionId } from '@/modules/landing/hooks/useSmoothScroll';
 import { LandingButton } from '@/modules/landing/shared/LandingButton';
