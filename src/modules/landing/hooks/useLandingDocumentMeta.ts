@@ -6,6 +6,12 @@ const LANDING_DESCRIPTION =
 const LANDING_OG_TITLE = 'Orgatry — Simplifying HR Management';
 const LANDING_THEME = '#f3f3f5';
 
+export type LandingDocumentMetaOptions = {
+  title?: string;
+  description?: string;
+  ogTitle?: string;
+};
+
 function upsertMeta(attr: 'name' | 'property', key: string, content: string): HTMLMetaElement {
   const selector = `meta[${attr}="${key}"]`;
   let el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -19,26 +25,30 @@ function upsertMeta(attr: 'name' | 'property', key: string, content: string): HT
 }
 
 /**
- * Sets landing-specific document title, meta description, Open Graph placeholders,
- * and light-theme body classes for the duration of the landing route.
+ * Sets landing / legal document title, meta description, Open Graph placeholders,
+ * and light-theme body classes for the duration of the public marketing route.
  */
-export function useLandingDocumentMeta() {
+export function useLandingDocumentMeta(options?: LandingDocumentMetaOptions) {
+  const title = options?.title ?? LANDING_TITLE;
+  const description = options?.description ?? LANDING_DESCRIPTION;
+  const ogTitle = options?.ogTitle ?? options?.title ?? LANDING_OG_TITLE;
+
   useEffect(() => {
     const previousTitle = document.title;
     const previousTheme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content;
 
     document.documentElement.classList.add('landing-root');
     document.body.classList.add('landing-body');
-    document.title = LANDING_TITLE;
+    document.title = title;
 
-    upsertMeta('name', 'description', LANDING_DESCRIPTION);
+    upsertMeta('name', 'description', description);
     upsertMeta('name', 'theme-color', LANDING_THEME);
-    upsertMeta('property', 'og:title', LANDING_OG_TITLE);
-    upsertMeta('property', 'og:description', LANDING_DESCRIPTION);
+    upsertMeta('property', 'og:title', ogTitle);
+    upsertMeta('property', 'og:description', description);
     upsertMeta('property', 'og:type', 'website');
     upsertMeta('name', 'twitter:card', 'summary_large_image');
-    upsertMeta('name', 'twitter:title', LANDING_OG_TITLE);
-    upsertMeta('name', 'twitter:description', LANDING_DESCRIPTION);
+    upsertMeta('name', 'twitter:title', ogTitle);
+    upsertMeta('name', 'twitter:description', description);
 
     return () => {
       document.documentElement.classList.remove('landing-root');
@@ -48,5 +58,5 @@ export function useLandingDocumentMeta() {
         upsertMeta('name', 'theme-color', previousTheme);
       }
     };
-  }, []);
+  }, [title, description, ogTitle]);
 }

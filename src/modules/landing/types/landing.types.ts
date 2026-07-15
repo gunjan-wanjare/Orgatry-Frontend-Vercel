@@ -54,6 +54,8 @@ export type ContactInfoItem = {
 export type FooterLink = {
   label: string;
   href: string;
+  /** Open in a new tab with `rel="noopener noreferrer"`. */
+  openInNewTab?: boolean;
 };
 
 export type FooterLinkColumn = {

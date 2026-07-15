@@ -1,12 +1,11 @@
 import { motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { fadeInUp, staggerContainer } from '@/modules/landing/animations/landingMotion';
 import {
   landingFooter,
   landingFooterColumns,
 } from '@/modules/landing/constants/content';
 import { scrollToSectionId } from '@/modules/landing/hooks/useSmoothScroll';
-
-
 
 const FOOTER_OVERLAP = 298;
 const CONTENT_PAD_TOP = 392;
@@ -16,8 +15,15 @@ const LINK_COLUMNS_GAP = 110;
 const ROW_GAP = 200;
 const SECTION_STACK_GAP = 28;
 const BORDER_COLOR = 'rgba(23,23,23,0.08)';
+const STANDALONE_PAD_TOP = 72;
 
 function handleNavClick(href: string) {
+  if (href.startsWith('/#')) {
+    const id = href.slice(2);
+    if (id) scrollToSectionId(id);
+    return;
+  }
+
   if (href.startsWith('#')) {
     const id = href.slice(1);
     if (id) scrollToSectionId(id);
@@ -25,25 +31,24 @@ function handleNavClick(href: string) {
 }
 
 function NewsletterBlock() {
-
-
   return (
     <div className="flex w-full max-w-[439px] flex-col gap-5">
       <div className="flex w-full max-w-[402px] flex-col gap-6">
         <p className="text-[36px] font-bold leading-8 tracking-[-0.6px] text-[#15803d] [font-family:Inter,sans-serif]">
           {landingFooter.brand}
         </p>
-        <p className="text-[#15803d] text-sm">A <span className="font-bold">YAKA</span> Brand</p>
-        
+        <p className="text-[#15803d] text-sm">
+          A <span className="font-bold">YAKA</span> Brand
+        </p>
       </div>
 
       <div className="flex w-full flex-col gap-3.5">
-
-
         <p className="text-[11px] font-normal leading-normal text-[#595959] [font-family:Inter,sans-serif]">
           {landingFooter.privacyPrefix}
           <a
             href={landingFooter.privacyHref}
+            target="_blank"
+            rel="noopener noreferrer"
             className="font-medium text-[#171717] underline decoration-solid underline-offset-from-font [font-family:Inter,sans-serif] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803d]/40"
           >
             {landingFooter.privacyLabel}
@@ -55,6 +60,9 @@ function NewsletterBlock() {
 }
 
 function FooterLinkColumns() {
+  const location = useLocation();
+  const isOnLanding = location.pathname === '/';
+
   return (
     <nav
       aria-label="Footer"
@@ -67,22 +75,30 @@ function FooterLinkColumns() {
             {column.title}
           </p>
           <ul className="m-0 flex list-none flex-col gap-3.5 p-0">
-            {column.links.map((link) => (
-              <li key={`${column.id}-${link.label}`}>
-                <a
-                  href={link.href}
-                  onClick={(event) => {
-                    if (link.href.startsWith('#')) {
-                      event.preventDefault();
-                      handleNavClick(link.href);
-                    }
-                  }}
-                  className="text-sm font-normal text-[#595959] transition-colors [font-family:Inter,sans-serif] hover:text-[#171717] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803d]/40"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
+            {column.links.map((link) => {
+              const isHash =
+                link.href.startsWith('#') || link.href.startsWith('/#');
+
+              return (
+                <li key={`${column.id}-${link.label}`}>
+                  <a
+                    href={link.href}
+                    {...(link.openInNewTab
+                      ? { target: '_blank', rel: 'noopener noreferrer' }
+                      : {})}
+                    onClick={(event) => {
+                      if (isHash && isOnLanding) {
+                        event.preventDefault();
+                        handleNavClick(link.href);
+                      }
+                    }}
+                    className="text-sm font-normal text-[#595959] transition-colors [font-family:Inter,sans-serif] hover:text-[#171717] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803d]/40"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
@@ -90,15 +106,18 @@ function FooterLinkColumns() {
   );
 }
 
+type LandingFooterProps = {
+  /** When true (default), footer overlaps the contact panel as on the homepage. */
+  withContactOverlap?: boolean;
+};
 
-
-export function LandingFooter() {
+export function LandingFooter({ withContactOverlap = true }: LandingFooterProps) {
   return (
     <footer
       className="relative bg-[#f0f0f2]"
       style={{
-        marginTop: -FOOTER_OVERLAP,
-        paddingTop: CONTENT_PAD_TOP,
+        marginTop: withContactOverlap ? -FOOTER_OVERLAP : 0,
+        paddingTop: withContactOverlap ? CONTENT_PAD_TOP : STANDALONE_PAD_TOP,
         paddingBottom: CONTENT_PAD_BOTTOM
       }}
     >

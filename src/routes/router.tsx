@@ -12,6 +12,16 @@ const LandingPage = lazy(() =>
     default: module.LandingPage,
   })),
 );
+const PrivacyPolicyPage = lazy(() =>
+  import("@/modules/landing/legal/PrivacyPolicyPage").then((module) => ({
+    default: module.PrivacyPolicyPage,
+  })),
+);
+const TermsAndConditionsPage = lazy(() =>
+  import("@/modules/landing/legal/TermsAndConditionsPage").then((module) => ({
+    default: module.TermsAndConditionsPage,
+  })),
+);
 const AppShell = lazy(() =>
   import("@/layouts/AppShell").then((module) => ({ default: module.AppShell })),
 );
@@ -160,6 +170,14 @@ function landingElement(element: ReactNode) {
 
 export const router = createBrowserRouter([
   { path: "/", element: landingElement(<LandingPage />) },
+  {
+    path: "/privacy-policy",
+    element: landingElement(<PrivacyPolicyPage />),
+  },
+  {
+    path: "/terms-and-conditions",
+    element: landingElement(<TermsAndConditionsPage />),
+  },
   { path: "/login", element: <LoginPage /> },
   { path: "/onboarding/:token", element: lazyElement(<PreOnboardingPortalPage />) },
   { path: "/forgot-password", element: lazyElement(<ForgotPasswordPage />) },

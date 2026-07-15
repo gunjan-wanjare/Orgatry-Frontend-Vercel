@@ -155,7 +155,7 @@ export const landingFooter = {
   subscribeButton: 'Subscribe',
   privacyPrefix: 'By subscribing you agree to with our ',
   privacyLabel: 'Privacy Policy',
-  privacyHref: '#',
+  privacyHref: '/privacy-policy',
   copyright: 'Copyright © 2025. All Rights Reserved'
 } as const;
 
@@ -164,10 +164,10 @@ export const landingFooterColumns: FooterLinkColumn[] = [
     id: 'quick-links',
     title: 'Quick Links',
     links: [
-      { label: 'Home', href: '#home' },
-      { label: 'About', href: '#about' },
-      { label: 'Services', href: '#solutions' },
-      { label: 'Contact', href: '#contact' }
+      { label: 'Home', href: '/#home' },
+      { label: 'About', href: '/#about' },
+      { label: 'Services', href: '/#solutions' },
+      { label: 'Contact', href: '/#contact' }
     ]
   },
   {
@@ -181,13 +181,11 @@ export const landingFooterColumns: FooterLinkColumn[] = [
     ]
   },
   {
-    id: 'company',
-    title: 'Company',
+    id: 'legal',
+    title: 'Legal',
     links: [
-      { label: 'About', href: '#about' },
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Support', href: '#' },
-      { label: 'Terms of Service', href: '#' }
+      { label: 'Privacy Policy', href: '/privacy-policy', openInNewTab: true },
+      { label: 'Terms & Conditions', href: '/terms-and-conditions', openInNewTab: true }
     ]
   }
 ];

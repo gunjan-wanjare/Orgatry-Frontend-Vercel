@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
   type MouseEvent
 } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { navbarFadeIn } from '@/modules/landing/animations/landingMotion';
 import { landingNavItems, landingNavSectionIds } from '@/modules/landing/constants/navigation';
 import { landingTokens } from '@/modules/landing/constants/tokens';
@@ -52,17 +53,31 @@ function LandingNavbarComponent() {
   const menuToggleRef = useRef<HTMLButtonElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isLgNav, setIsLgNav] = useState(false);
-  const activeId = useActiveSection({ sectionIds: landingNavSectionIds });
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isOnLanding = location.pathname === '/';
+  const activeId = useActiveSection({
+    sectionIds: isOnLanding ? landingNavSectionIds : []
+  });
   const { scrollToSection } = useSmoothScroll();
   const { introReady, yakaSlot } = useLandingExperience();
   const showNavYaka = yakaSlot === 'nav';
 
   const handleNavigate = useCallback(
     (sectionId: string) => {
+      if (!isOnLanding) {
+        navigate(
+          sectionId === 'home'
+            ? { pathname: '/' }
+            : { pathname: '/', hash: sectionId }
+        );
+        setMobileOpen(false);
+        return;
+      }
       scrollToSection(sectionId);
       setMobileOpen(false);
     },
-    [scrollToSection]
+    [isOnLanding, navigate, scrollToSection]
   );
 
   const handleHome = useCallback(() => {
