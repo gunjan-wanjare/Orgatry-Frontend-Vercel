@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 
-const LANDING_TITLE = 'Orgatry — Smart HRMS Solutions';
+const LANDING_TITLE = 'Orgatry — Simplify and Scale Up Your Employee Lifecycle';
 const LANDING_DESCRIPTION =
-  'Orgatry delivers smart HRMS solutions that streamline operations, empower employees, and drive business growth.';
-const LANDING_OG_TITLE = 'Orgatry — Simplifying HR Management';
+  'Orgatry delivers HR solutions and scalable HRMS software for workplaces built to grow.';
+const LANDING_OG_TITLE = 'Orgatry — Simplify and Scale Up Your Employee Lifecycle';
 const LANDING_THEME = '#f3f3f5';
 
 export type LandingDocumentMetaOptions = {

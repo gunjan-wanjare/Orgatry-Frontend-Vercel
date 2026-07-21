@@ -103,7 +103,7 @@ export function TrustedSection() {
           className="m-0 text-center text-2xl leading-normal font-medium text-[#171717] [font-family:Manrope,sans-serif]"
           data-node-id="1:1226"
         >
-          Trusted by Over <span className="font-semibold">50+</span> Industry Leaders
+          Chosen by <span className="font-semibold">50+</span> institutions
         </motion.h2>
 
         <motion.div

@@ -22,7 +22,7 @@ const WHY_CARDS = [
     id: 'automation',
     title: 'Smart HR Automation',
     description:
-      'Automate repetitive HR tasks with intelligent workflows that improve efficiency, reduce manual work, and save valuable time.',
+      'Automate repetitive tasks with HR automation software and save valuable time.',
     icon: whyAutomation,
     iconSize: 33,
     background: 'white' as const,
@@ -32,7 +32,7 @@ const WHY_CARDS = [
     id: 'experience',
     title: 'Employee-Centric Experience',
     description:
-      'Deliver a seamless experience for employees and HR teams with intuitive, user-friendly, and collaborative tools.',
+      'A seamless, intuitive experience for HR teams and employees alike.',
     icon: whyExperience,
     iconSize: 36,
     background: 'white' as const,
@@ -42,7 +42,7 @@ const WHY_CARDS = [
     id: 'secure',
     title: 'Secure & Scalable',
     description:
-      'A cloud-based HRMS that grows with your business while ensuring enterprise-grade security and data protection.',
+      'A cloud-based compliance management software that grows with your business.',
     icon: whySecure,
     iconSize: 35,
     background: 'mint' as const,
@@ -50,9 +50,9 @@ const WHY_CARDS = [
   },
   {
     id: 'hrms',
-    title: 'End-to-End HRMS',
+    title: 'One Unified Platform',
     description:
-      'Manage recruitment, onboarding, payroll, attendance, leave, and performance from one unified HR platform.',
+      'Manage recruitment, onboarding, attendance, leave, and performance without switching tools.',
     icon: whyHrms,
     iconSize: 35,
     background: 'white' as const,
@@ -62,7 +62,7 @@ const WHY_CARDS = [
     id: 'insights',
     title: 'Real-Time Insights',
     description:
-      'Make better workforce decisions with powerful analytics, customizable reports, and actionable HR insights.',
+      'Confident workplace decisions with powerful analytics and customizable reports.',
     icon: whyInsights,
     iconSize: 33,
     background: 'white' as const,
@@ -71,8 +71,7 @@ const WHY_CARDS = [
   {
     id: 'support',
     title: 'Dedicated Support',
-    description:
-      'Our dedicated support team ensures smooth implementation, continuous assistance, and reliable service whenever you need it.',
+    description: 'Get expert help from day one, anytime, anywhere.',
     icon: whySupport,
     iconSize: 32,
     background: 'white' as const,
@@ -131,8 +130,8 @@ export function WhyChooseUsSection() {
             className="m-0 w-full text-center text-base leading-[23.448px] font-semibold text-[#595959] [font-family:Inter,sans-serif]"
             data-node-id="1:2118"
           >
-            We combine innovative HR technology with practical expertise to deliver solutions that simplify workforce
-            management and drive business growth.
+            We combine intelligent HR technology with hands-on expertise to simplify your workforce management and drive
+            your business growth.
           </p>
         </motion.header>
 

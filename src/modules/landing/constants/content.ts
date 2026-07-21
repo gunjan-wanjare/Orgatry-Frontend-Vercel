@@ -1,13 +1,10 @@
 import type {
   ContactInfoItem,
   FAQ,
-  Feature,
   FooterLinkColumn,
   NavigationItem,
   SocialLink,
-  Solution,
-  Testimonial,
-  WhyChoose
+  Testimonial
 } from '@/modules/landing/types/landing.types';
 import contactAddressIcon from '@/modules/landing/assets/icons/contact-address.svg';
 import contactEmailIcon from '@/modules/landing/assets/icons/contact-email.svg';
@@ -21,43 +18,29 @@ import { landingNavItems } from '@/modules/landing/constants/navigation';
 
 export const landingNavigation: NavigationItem[] = landingNavItems;
 
-export const landingFeatures: Feature[] = [];
-
-export const landingSolutions: Solution[] = [];
-
-export const landingWhyChoose: WhyChoose[] = [];
-
 /** Realistic HRMS FAQs — first item open by default in FaqSection. */
 export const landingFaqs: FAQ[] = [
   {
-    id: 'faq-leave',
-    question: 'How does leave management work in Orgatry?',
-    answer:
-      'Employees can apply for leave from the self-service portal, while managers approve requests from a single queue. Policy rules, leave balances, holidays, and accruals stay in sync so HR does not need to chase spreadsheet updates.'
+    id: 'faq-sizes',
+    question: 'Is Orgatry suitable for businesses of all sizes?',
+    answer: 'Yes, Orgatry works for startups, growing teams, and large enterprises alike.'
   },
   {
-    id: 'faq-attendance',
-    question: 'Can we track attendance across office and remote teams?',
+    id: 'faq-processes',
+    question: 'What HR processes does Orgatry manage?',
     answer:
-      'Yes. Orgatry supports biometric, geo-fenced mobile check-in, and web punches. Shift schedules, late marks, overtime, and absences roll into attendance reports that payroll and managers can trust.'
+      'Orgatry manages everything, from employee attendance and leave to recruitment, onboarding, and performance, all in one place.'
   },
   {
-    id: 'faq-payroll',
-    question: 'Does Orgatry handle payroll and statutory compliance?',
-    answer:
-      'Payroll runs from attendance and salary structures already in the system. Deductions, reimbursements, and statutory components are calculated in one cycle, with payslips employees can download anytime.'
+    id: 'faq-recruitment',
+    question: 'Can Orgatry handle recruitment and onboarding?',
+    answer: 'Yes, Orgatry manages the full employee lifecycle, including recruitment and onboarding.'
   },
   {
-    id: 'faq-ess',
-    question: 'What can employees do through self-service?',
+    id: 'faq-ai',
+    question: 'Does Orgatry use AI?',
     answer:
-      'Employees update profiles, apply for leave, view attendance, download payslips, submit claims, and track appraisal goals without raising tickets to HR for routine requests.'
-  },
-  {
-    id: 'faq-security',
-    question: 'How is employee data kept secure?',
-    answer:
-      'Access is role-based, sessions are protected, and sensitive fields are restricted by permission. Data is stored on secure cloud infrastructure with audit trails for critical HR actions.'
+      'Yes, Orgatry uses AI to automate repetitive HR tasks and produce real-time workforce insights.'
   }
 ];
 
@@ -102,11 +85,10 @@ export const landingTestimonials: Testimonial[] = [
 
 /** Contact panel copy from Figma `1:1626`. */
 export const landingContact = {
-  headingBefore: 'Get in Touch ',
-  headingAccent: 'with',
-  headingAfter: ' Us',
-  supporting:
-    'Let’s discuss how Orgatry Innovations can help transform your business.',
+  headingBefore: "Let's Build Your HR System.",
+  headingAccent: '',
+  headingAfter: '',
+  supporting: "Tell us about your business. We'll show you how Orgatry fits.",
   submitLabel: 'Submit',
   fields: {
     name: { label: 'Name', placeholder: 'Name' },
@@ -150,7 +132,7 @@ export const landingContactInfo: ContactInfoItem[] = [
 export const landingFooter = {
   brand: 'Orgatry',
   subscribeTitle: 'Subscribe',
-  subscribeDescription: 'Join our newsletter to stay up to date on features and releases.',
+  subscribeDescription: 'Stay updated on Orgatry HR solutions, features, and releases.',
   emailPlaceholder: 'Enter your email',
   subscribeButton: 'Subscribe',
   privacyPrefix: 'By subscribing you agree to with our ',

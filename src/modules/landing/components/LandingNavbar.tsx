@@ -11,14 +11,14 @@ import {
   type MouseEvent
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { introConfig } from '@/components/intro';
+import { useIntro } from '@/components/intro/useIntro';
 import { navbarFadeIn } from '@/modules/landing/animations/landingMotion';
 import { landingNavItems, landingNavSectionIds } from '@/modules/landing/constants/navigation';
 import { landingTokens } from '@/modules/landing/constants/tokens';
 import { useActiveSection } from '@/modules/landing/hooks/useActiveSection';
-import { useLandingExperience } from '@/modules/landing/hooks/useLandingExperience';
 import { useSmoothScroll } from '@/modules/landing/hooks/useSmoothScroll';
 import { LandingButton } from '@/modules/landing/shared/LandingButton';
-import { YakaMarkMotion } from '@/modules/landing/shared/YakaMarkMotion';
 import { cn } from '@/lib/utils';
 
 const NAVBAR_WIDTH = landingTokens.contentWidth;
@@ -47,6 +47,41 @@ function OrgatryLogo({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
+function NavbarLogoAnchor({ showLogo }: { showLogo: boolean }) {
+  const size = introConfig.navbarLogoSize;
+
+  return (
+    <div
+      className="relative shrink-0"
+      style={{
+        // Collapse until dock completes — no early navbar icon / layout hole
+        width: showLogo ? size : 0,
+        height: size
+      }}
+    >
+      {/* Always-measurable dock target (absolute); icon only when finished */}
+      <div
+        id={introConfig.navbarAnchorId}
+        className="absolute top-1/2 right-0 -translate-y-1/2"
+        style={{ width: size, height: size }}
+        aria-hidden={!showLogo}
+      >
+        {showLogo ? (
+          <img
+            src={introConfig.iconLogo}
+            alt="YAKA"
+            width={size}
+            height={size}
+            className="size-full object-contain"
+            decoding="async"
+            draggable={false}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function LandingNavbarComponent() {
   const menuId = useId();
   const menuPanelRef = useRef<HTMLDivElement>(null);
@@ -60,8 +95,7 @@ function LandingNavbarComponent() {
     sectionIds: isOnLanding ? landingNavSectionIds : []
   });
   const { scrollToSection } = useSmoothScroll();
-  const { introReady, yakaSlot } = useLandingExperience();
-  const showNavYaka = yakaSlot === 'nav';
+  const { isContentReady, showNavbarLogo, shiftNavbarControls } = useIntro();
 
   const handleNavigate = useCallback(
     (sectionId: string) => {
@@ -163,12 +197,12 @@ function LandingNavbarComponent() {
       className="pointer-events-none fixed inset-x-0 top-0 z-50"
       variants={navbarFadeIn}
       initial="hidden"
-      animate={introReady ? 'visible' : 'hidden'}
+      animate={isContentReady ? 'visible' : 'hidden'}
     >
       <div
         className={cn(
           'relative mx-auto hidden w-full max-w-[1440px] lg:block',
-          introReady ? 'pointer-events-auto' : 'pointer-events-none'
+          isContentReady ? 'pointer-events-auto' : 'pointer-events-none'
         )}
         style={{ height: NAVBAR_TOP + NAVBAR_HEIGHT }}
       >
@@ -212,7 +246,14 @@ function LandingNavbarComponent() {
           </ul>
 
           <div className="flex shrink-0 items-center gap-3">
-            <motion.div layout className="shrink-0">
+            <motion.div
+              className="shrink-0"
+              animate={{ x: shiftNavbarControls ? -introConfig.navbarShiftPx : 0 }}
+              transition={{
+                duration: introConfig.navbarShiftDuration / 1000,
+                ease: 'easeInOut'
+              }}
+            >
               <LandingButton
                 variant="primary"
                 onClick={handleContact}
@@ -222,16 +263,15 @@ function LandingNavbarComponent() {
                 Get In Touch
               </LandingButton>
             </motion.div>
-            {showNavYaka && isLgNav ? <YakaMarkMotion size="nav" /> : null}
+            {isLgNav ? <NavbarLogoAnchor showLogo={showNavbarLogo} /> : null}
           </div>
         </nav>
       </div>
 
-      {/* Tablet / Mobile — hamburger until lg (avoids cramped 5-link mid breakpoints) */}
       <div
         className={cn(
           'mx-auto w-full max-w-[1440px] px-4 pt-4 lg:hidden',
-          introReady ? 'pointer-events-auto' : 'pointer-events-none'
+          isContentReady ? 'pointer-events-auto' : 'pointer-events-none'
         )}
       >
         <nav
@@ -247,16 +287,25 @@ function LandingNavbarComponent() {
           <OrgatryLogo onNavigate={handleHome} />
 
           <div className="flex items-center gap-2">
-            <LandingButton
-              variant="primary"
-              onClick={handleContact}
-              className="hidden h-10 px-5 text-sm sm:inline-flex"
-              aria-label="Get In Touch"
+            <motion.div
+              className="hidden sm:block"
+              animate={{ x: shiftNavbarControls ? -introConfig.navbarShiftPx : 0 }}
+              transition={{
+                duration: introConfig.navbarShiftDuration / 1000,
+                ease: 'easeInOut'
+              }}
             >
-              Get In Touch
-            </LandingButton>
+              <LandingButton
+                variant="primary"
+                onClick={handleContact}
+                className="h-10 px-5 text-sm"
+                aria-label="Get In Touch"
+              >
+                Get In Touch
+              </LandingButton>
+            </motion.div>
 
-            {showNavYaka && !isLgNav ? <YakaMarkMotion size="nav" /> : null}
+            {!isLgNav ? <NavbarLogoAnchor showLogo={showNavbarLogo} /> : null}
 
             <button
               ref={menuToggleRef}

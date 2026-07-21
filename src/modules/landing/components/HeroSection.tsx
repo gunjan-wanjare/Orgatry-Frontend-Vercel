@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { memo, useCallback, useEffect, useState, type ImgHTMLAttributes } from 'react';
+import { memo, useCallback, type ImgHTMLAttributes } from 'react';
 import arrowDownRight from '@/modules/landing/assets/icons/arrow-down-right.svg';
 import arrowTopLeft from '@/modules/landing/assets/icons/arrow-top-left.svg';
 import arrowUp from '@/modules/landing/assets/icons/arrow-up.svg';
@@ -14,12 +14,12 @@ import {
   heroItem,
   heroStagger
 } from '@/modules/landing/animations/landingMotion';
+import { introConfig } from '@/components/intro';
+import { useIntro } from '@/components/intro/useIntro';
 import { landingTokens } from '@/modules/landing/constants/tokens';
-import { useLandingExperience } from '@/modules/landing/hooks/useLandingExperience';
 import { useSmoothScroll } from '@/modules/landing/hooks/useSmoothScroll';
 import { LandingButton } from '@/modules/landing/shared/LandingButton';
 import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
-import { YakaMarkMotion } from '@/modules/landing/shared/YakaMarkMotion';
 import { LANDING_VISUAL_SCALE, vs } from '@/modules/landing/utils/scale';
 import { cn } from '@/lib/utils';
 
@@ -98,7 +98,7 @@ function HeroBadge() {
           'min-[1440px]:max-w-none min-[1440px]:text-base'
         )}
       >
-        Transforming Workforces Through Smart HR Technology
+        Smart HR Technology for Growing Businesses
       </span>
     </SectionBadge>
   );
@@ -307,7 +307,7 @@ function HeroCopy({
               )}
               data-node-id="1:1177"
             >
-              Simplifying HR Management for a Modern Workplace
+              Simplify and Scale Up Your Employee Lifecycle
             </motion.h1>
             <motion.p
               variants={heroItem}
@@ -317,8 +317,7 @@ function HeroCopy({
               )}
               data-node-id="1:1178"
             >
-              Orgatry delivers smart HRMS solutions that streamline operations, empower employees, and drive business
-              growth.
+              Orgatry delivers HR solutions and scalable HRMS software for workplaces built to grow.
             </motion.p>
           </div>
         </div>
@@ -334,18 +333,18 @@ function HeroCopy({
             variant="primary"
             onClick={onPrimary}
             className={cn('h-[51px] gap-2.5 px-8 py-[14px]', CTA_SHADOW)}
-            aria-label="Get In Touch"
+            aria-label="See What We've Built"
           >
-            Get In Touch
+            See What We've Built
             <img src={heroCtaArrow} alt="" width={23} height={23} className="size-[23px] shrink-0" decoding="async" />
           </LandingButton>
           <LandingButton
             variant="secondary"
             onClick={onSecondary}
             className={cn('h-[50px] px-8 py-[14px]', CTA_SHADOW)}
-            aria-label="Request a demo"
+            aria-label="Talk to Our Experts"
           >
-            Request a demo
+            Talk to Our Experts
           </LandingButton>
         </motion.div>
       </div>
@@ -359,16 +358,7 @@ function HeroCopy({
  */
 export function HeroSection() {
   const { scrollToSection } = useSmoothScroll();
-  const { introReady, yakaSlot } = useLandingExperience();
-  const [isDesktopArtboard, setIsDesktopArtboard] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1440px)');
-    const apply = () => setIsDesktopArtboard(mq.matches);
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, []);
+  const { isContentReady } = useIntro();
 
   const goContact = useCallback(() => {
     scrollToSection('contact');
@@ -378,8 +368,6 @@ export function HeroSection() {
     scrollToSection('home');
   }, [scrollToSection]);
 
-  const showHeroYaka = yakaSlot === 'hero' && isDesktopArtboard;
-
   return (
     <motion.section
       id="home"
@@ -388,17 +376,18 @@ export function HeroSection() {
       className="relative scroll-mt-0 overflow-hidden bg-[#f3f3f5]"
       variants={heroFadeIn}
       initial="hidden"
-      animate={introReady ? 'visible' : 'hidden'}
+      animate={isContentReady ? 'visible' : 'hidden'}
     >
-      {/* Desktop only — shared-layout YAKA; tablet/mobile use navbar mark only */}
-      {showHeroYaka ? (
-        <div
-          className="pointer-events-none absolute z-40 origin-top-right top-[169px]"
-          style={{ left: '50%', marginLeft: 1298 - ARTBOARD / 2 }}
-        >
-          <YakaMarkMotion size="hero" showCaption />
-        </div>
-      ) : null}
+      {/* Measured destination for the flying brand logo — invisible anchor only */}
+      <div
+        id={introConfig.heroAnchorId}
+        className="pointer-events-none absolute top-[140px] right-6 z-40 hidden min-[768px]:block min-[1440px]:top-[169px] min-[1440px]:right-auto min-[1440px]:left-1/2 min-[1440px]:ml-[578px]"
+        style={{
+          width: introConfig.heroLogoSize,
+          height: introConfig.heroLogoSize
+        }}
+        aria-hidden
+      />
 
       {/* —— Desktop / large: pixel artboard —— */}
       <div
@@ -417,21 +406,21 @@ export function HeroSection() {
           <VerticalGuideLines />
 
           <div className="absolute top-[186px] left-1/2 z-10 -translate-x-1/2">
-            <HeroCopy onPrimary={goContact} onSecondary={goContact} layout="desktop" introReady={introReady} />
+              <HeroCopy onPrimary={goContact} onSecondary={goContact} layout="desktop" introReady={isContentReady} />
           </div>
 
           <motion.div
             className="absolute top-[587px] left-[259px] z-10 h-[696px] w-[978.647px]"
             variants={floatingDashboard}
             initial="hidden"
-            animate={introReady ? 'visible' : 'hidden'}
+            animate={isContentReady ? 'visible' : 'hidden'}
           >
             <DashboardMockup className="size-full" />
           </motion.div>
 
-          <GrowthPillCard introReady={introReady} />
-          <EmployedCard introReady={introReady} />
-          <PerformanceCard introReady={introReady} />
+          <GrowthPillCard introReady={isContentReady} />
+          <EmployedCard introReady={isContentReady} />
+          <PerformanceCard introReady={isContentReady} />
           <ScrollHintButton onClick={goTop} />
 
           {/* Bottom fade `1:1197` — y:711, h:211, background blur 2 */}
@@ -451,13 +440,13 @@ export function HeroSection() {
       <div className="relative mx-auto flex max-w-[1440px] flex-col items-center overflow-hidden px-6 pt-[160px] pb-16 sm:pt-[152px] md:pt-[148px] min-[1440px]:hidden">
         <VerticalGuideLines className="opacity-70" />
         <div className="relative z-10 flex w-full max-w-[720px] flex-col items-center pr-14 sm:pr-16 md:max-w-none md:pr-20">
-          <HeroCopy onPrimary={goContact} onSecondary={goContact} layout="fluid" introReady={introReady} />
+          <HeroCopy onPrimary={goContact} onSecondary={goContact} layout="fluid" introReady={isContentReady} />
         </div>
         <motion.div
           className="relative z-10 mt-10 w-full max-w-[980px]"
           variants={floatingDashboard}
           initial="hidden"
-          animate={introReady ? 'visible' : 'hidden'}
+          animate={isContentReady ? 'visible' : 'hidden'}
         >
           <div className="relative aspect-[978.65/696] w-full overflow-hidden rounded-[10px]">
             <DashboardMockup className="size-full" loading="lazy" />

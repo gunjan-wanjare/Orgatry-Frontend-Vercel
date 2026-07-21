@@ -11,7 +11,6 @@ import {
 } from '@/modules/landing/animations/landingMotion';
 import { LandingFeatureCard } from '@/modules/landing/cards/LandingFeatureCard';
 import { landingTokens } from '@/modules/landing/constants/tokens';
-import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
 import { cn } from '@/lib/utils';
 import { vs } from '@/modules/landing/utils/scale';
 
@@ -28,38 +27,25 @@ const ABOUT_FEATURES = [
     id: 'vision',
     title: 'Our Vision',
     description:
-      'To empower businesses with intelligent HR technology that improves workforce management, employee engagement, and organizational growth.',
+      'We want to ensure HR technology for businesses that can scale without friction.',
     icon: visionIcon
   },
   {
     id: 'mission',
     title: 'Our Mission',
     description:
-      'To deliver reliable, user-friendly, and scalable HRMS solutions that streamline HR operations and enhance workplace productivity.',
+      "We deliver HRMS infrastructure that's reliable, intelligent, and built to scale with you.",
     icon: missionIcon
   },
   {
     id: 'expertise',
     title: 'Our Expertise',
     description:
-      'Our experts specialize in payroll, attendance, leave, recruitment, and performance management, helping businesses transform HR digitally.',
+      'We specialize in solving every operational HR problem across recruitment, attendance, leave, onboarding, and performance.',
     icon: expertiseIcon,
     descriptionClassName: 'max-w-[403px]'
   }
 ] as const;
-
-function AboutBadge() {
-  return (
-    <SectionBadge
-      className={cn(
-        'h-[34px] w-[109px] justify-center rounded-[50px] border border-[#008435]',
-        'bg-[rgba(34,197,94,0.2)] text-base font-bold text-[#026229] [font-family:Manrope,sans-serif]'
-      )}
-    >
-      About Us
-    </SectionBadge>
-  );
-}
 
 function FeatureList({ fluid }: { fluid?: boolean }) {
   return (
@@ -118,17 +104,6 @@ export function AboutSection() {
         style={{ width: landingTokens.artboardWidth, height: landingTokens.aboutHeight }}
       >
         <motion.div
-          className="absolute"
-          style={{ left: COPY_LEFT, top: 30 }}
-          variants={revealFromLeft}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-        >
-          <AboutBadge />
-        </motion.div>
-
-        <motion.div
           className="absolute flex flex-col items-start gap-10"
           style={{ left: COPY_LEFT, top: COPY_TOP, width: COPY_WIDTH }}
           data-node-id="1:1293"
@@ -142,14 +117,19 @@ export function AboutSection() {
               className="m-0 w-full text-[45.6px] font-bold text-[#171717] [font-family:Manrope,sans-serif]"
               data-node-id="1:1295"
             >
-              Who We Are!
+              HR Infrastructure for Modern Enterprises
             </h2>
             <p
               className="m-0 w-full text-base font-normal text-[#595959] [font-family:Inter,sans-serif]"
               data-node-id="1:1296"
             >
-              Orgatry is a modern HRMS platform that simplifies workforce management with smart, secure, and scalable HR
-              solutions.
+              Managing people is complex.
+            </p>
+            <p className="m-0 w-full text-base font-normal text-[#595959] [font-family:Inter,sans-serif]">
+              Orgatry makes it simple.
+            </p>
+            <p className="m-0 w-full text-base font-normal text-[#595959] [font-family:Inter,sans-serif]">
+              Manage your entire workforce on a single platform with our smart, secure HR solutions.
             </p>
           </div>
           <FeatureList />
@@ -178,14 +158,18 @@ export function AboutSection() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.3 }}
         >
-          <AboutBadge />
           <div className="flex w-full flex-col items-start gap-4">
             <h2 className="m-0 text-[clamp(32px,6vw,48px)] font-bold text-[#171717] [font-family:Manrope,sans-serif]">
-              Who We Are!
+              HR Infrastructure for Modern Enterprises
             </h2>
             <p className="m-0 max-w-[475px] text-base text-[#595959] [font-family:Inter,sans-serif]">
-              Orgatry is a modern HRMS platform that simplifies workforce management with smart, secure, and scalable HR
-              solutions.
+              Managing people is complex.
+            </p>
+            <p className="m-0 max-w-[475px] text-base text-[#595959] [font-family:Inter,sans-serif]">
+              Orgatry makes it simple.
+            </p>
+            <p className="m-0 max-w-[475px] text-base text-[#595959] [font-family:Inter,sans-serif]">
+              Manage your entire workforce on a single platform with our smart, secure HR solutions.
             </p>
           </div>
           <FeatureList fluid />

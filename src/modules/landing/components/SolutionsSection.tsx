@@ -21,17 +21,16 @@ const SOLUTION_CARDS = [
   {
     id: 'employee',
     title: 'Employee Management',
-    description:
-      'Manage your complete employee lifecycle with centralized records, onboarding, and HR workflows for every department.',
+    description: 'Manage every employee record with organized HR workflows.',
     icon: solutionEmployee,
     iconSize: 37,
     descriptionClassName: 'max-w-[340px]'
   },
   {
-    id: 'payroll',
-    title: 'Payroll & Attendance',
+    id: 'compliance',
+    title: 'Employee Compliance',
     description:
-      'Automate payroll processing, attendance tracking, overtime calculations, and statutory compliance with accuracy.',
+      'Get a complete compliance view of every employee, right from previous companies worked at, number of offers held, hike history, to absconding records, all in one place.',
     icon: solutionPayroll,
     iconSize: 30,
     descriptionClassName: 'max-w-[370px]'
@@ -40,30 +39,30 @@ const SOLUTION_CARDS = [
     id: 'leave',
     title: 'Leave & Performance',
     description:
-      'Track leave requests, employee goals, appraisals, and performance insights to build a productive workforce.',
+      'With our comprehensive performance management software, track leaves, goals, performance, and appraisals in one place.',
     icon: solutionLeave,
     iconSize: 39,
     descriptionClassName: 'max-w-[328px]'
   },
   {
-    id: 'custom',
-    title: 'Need a Custom HR Solution?',
-    description:
-      "We create tailored HR solutions that adapt to your organization's unique workforce needs and operational goals.",
-    icon: solutionCustom,
-    iconSize: 39,
-    descriptionClassName: 'max-w-[332px]'
-  },
-  {
     id: 'recruit',
     title: 'Recruitment & Onboarding',
     description:
-      'Hire top talent faster with streamlined recruitment, digital onboarding, and employee document management.',
+      'Hire and onboard top talent faster without any paperwork with digital onboarding software.',
     icon: solutionRecruit,
     iconSize: 37,
     descriptionClassName: 'max-w-[342px]'
   }
 ] as const;
+
+const CUSTOM_SOLUTION_CARD = {
+  id: 'custom',
+  title: 'Need a Custom HR Solution?',
+  description: 'Build the HR system your business actually needs.',
+  icon: solutionCustom,
+  iconSize: 39,
+  descriptionClassName: 'max-w-[332px]'
+} as const;
 
 function SolutionsBadge() {
   return (
@@ -73,7 +72,7 @@ function SolutionsBadge() {
         'bg-[rgba(34,197,94,0.2)] text-base font-bold text-[#026229] [font-family:Manrope,sans-serif]'
       )}
     >
-      Our Expertise
+      Comprehensive HR Solutions
     </SectionBadge>
   );
 }
@@ -117,14 +116,14 @@ export function SolutionsSection() {
             className="m-0 w-full text-center text-[clamp(32px,4vw,48px)] font-bold text-[#171717] [font-family:Manrope,sans-serif]"
             data-node-id="1:2005"
           >
-            Comprehensive HR Solutions
+            One System for Every HR Workflow
           </h2>
           <p
             className="m-0 w-full text-center text-base leading-[23.448px] font-semibold text-[#595959] [font-family:Inter,sans-serif]"
             data-node-id="1:2006"
           >
-            We deliver end-to-end HRMS solutions designed to simplify workforce management and drive business growth
-            through intelligent automation.
+            Our end-to-end HRMS software for workforce management eliminates all manual work to drive your business
+            growth.
           </p>
         </motion.header>
 
@@ -155,9 +154,23 @@ export function SolutionsSection() {
           <LandingFeatureCard
             variant="cta"
             title="HR Analytics & Reports"
-            description="Make informed HR decisions with real-time dashboards, workforce analytics, and comprehensive business reports."
+            description="Make informed HR decisions with real-time workforce data and customizable reports."
             ctaLabel="Get in Touch"
             onCtaClick={goContact}
+          />
+          <LandingFeatureCard
+            key={CUSTOM_SOLUTION_CARD.id}
+            variant="panel"
+            density="solution"
+            background="white"
+            iconSrc={CUSTOM_SOLUTION_CARD.icon}
+            iconSize={CUSTOM_SOLUTION_CARD.iconSize}
+            title={CUSTOM_SOLUTION_CARD.title}
+            description={CUSTOM_SOLUTION_CARD.description}
+            descriptionClassName={CUSTOM_SOLUTION_CARD.descriptionClassName}
+            onLearnMore={goContact}
+            learnMoreHref="#contact"
+            learnMoreLabel="Get in Touch"
           />
         </motion.div>
       </div>
