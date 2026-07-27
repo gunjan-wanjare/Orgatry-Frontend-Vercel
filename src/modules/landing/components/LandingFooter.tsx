@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
+import darkLogo from '@/assets/orgatry_dark_logo.png';
 import { fadeInUp, staggerContainer } from '@/modules/landing/animations/landingMotion';
 import {
   landingFooter,
@@ -34,10 +35,13 @@ function NewsletterBlock() {
   return (
     <div className="flex w-full max-w-[439px] flex-col gap-4">
       <div className="flex w-full max-w-[402px] flex-col gap-4">
-        <p className="text-[36px] font-bold leading-8 tracking-[-0.6px] text-[#15803d] [font-family:Inter,sans-serif]">
-          {landingFooter.brand}
-        </p>
-        <p className="text-[#15803d] text-sm">
+        <img
+          src={darkLogo}
+          alt="Orgatry"
+          className="h-10 w-50"
+          loading="lazy"
+        />
+        <p className="text-sm text-[#15803d]">
           A <span className="font-bold">YAKA</span> Brand
         </p>
       </div>
