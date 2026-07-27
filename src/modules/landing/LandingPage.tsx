@@ -11,7 +11,7 @@ import { LandingFooter } from '@/modules/landing/components/LandingFooter';
 import { LandingNavbar } from '@/modules/landing/components/LandingNavbar';
 import { SolutionsSection } from '@/modules/landing/components/SolutionsSection';
 import { TestimonialsSection } from '@/modules/landing/components/TestimonialsSection';
-import { TrustedSection } from '@/modules/landing/components/TrustedSection';
+// import { TrustedSection } from '@/modules/landing/components/TrustedSection';
 import { WhyChooseUsSection } from '@/modules/landing/components/WhyChooseUsSection';
 import { landingTokens } from '@/modules/landing/constants/tokens';
 import { useLandingDocumentMeta } from '@/modules/landing/hooks/useLandingDocumentMeta';
