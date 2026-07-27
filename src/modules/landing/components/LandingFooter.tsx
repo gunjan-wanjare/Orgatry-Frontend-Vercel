@@ -34,11 +34,11 @@ function handleNavClick(href: string) {
 function NewsletterBlock() {
   return (
     <div className="flex w-full max-w-[439px] flex-col gap-4">
-      <div className="flex w-full max-w-[402px] flex-col gap-4">
+      <div className="flex w-full md:max-w-[125px] max-w-[100px] flex-col gap-4">
         <img
           src={darkLogo}
           alt="Orgatry"
-          className="h-10 w-50"
+          className="md:h-8 h-6 w-auto"
           loading="lazy"
         />
         <p className="text-sm text-[#15803d]">

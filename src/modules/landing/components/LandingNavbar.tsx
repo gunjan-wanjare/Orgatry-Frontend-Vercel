@@ -46,7 +46,7 @@ function OrgatryLogo({ onNavigate }: { onNavigate: () => void }) {
       <img
         src={lightLogo}
         alt="Orgatry"
-        className="h-8 w-auto sm:h-10"
+        className="lg:h-8 h-6 w-auto"
         loading="eager"
       />
     </button>
