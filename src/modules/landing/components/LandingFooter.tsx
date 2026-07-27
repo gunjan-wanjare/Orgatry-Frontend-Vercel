@@ -8,12 +8,12 @@ import {
 import { scrollToSectionId } from '@/modules/landing/hooks/useSmoothScroll';
 
 const FOOTER_OVERLAP = 298;
-const CONTENT_PAD_TOP = 392;
-const CONTENT_PAD_BOTTOM = 48;
+const CONTENT_PAD_TOP = 340;
+const CONTENT_PAD_BOTTOM = 20;
 const CONTENT_WIDTH = 1240;
 const LINK_COLUMNS_GAP = 110;
 const ROW_GAP = 200;
-const SECTION_STACK_GAP = 28;
+const SECTION_STACK_GAP = 10;
 const BORDER_COLOR = 'rgba(23,23,23,0.08)';
 const STANDALONE_PAD_TOP = 72;
 
@@ -32,8 +32,8 @@ function handleNavClick(href: string) {
 
 function NewsletterBlock() {
   return (
-    <div className="flex w-full max-w-[439px] flex-col gap-5">
-      <div className="flex w-full max-w-[402px] flex-col gap-6">
+    <div className="flex w-full max-w-[439px] flex-col gap-4">
+      <div className="flex w-full max-w-[402px] flex-col gap-4">
         <p className="text-[36px] font-bold leading-8 tracking-[-0.6px] text-[#15803d] [font-family:Inter,sans-serif]">
           {landingFooter.brand}
         </p>
@@ -74,7 +74,7 @@ function FooterLinkColumns() {
           <p className="text-[15px] font-bold text-[#171717] [font-family:Manrope,sans-serif]">
             {column.title}
           </p>
-          <ul className="m-0 flex list-none flex-col gap-3.5 p-0">
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {column.links.map((link) => {
               const isHash =
                 link.href.startsWith('#') || link.href.startsWith('/#');
@@ -131,7 +131,7 @@ export function LandingFooter({ withContactOverlap = true }: LandingFooterProps)
       >
         <div className="flex flex-col" style={{ gap: SECTION_STACK_GAP }}>
           <motion.div
-            className="flex flex-col gap-10 border-b-[1.5px] pb-9 lg:flex-row lg:items-start"
+            className="flex flex-col gap-10 border-b-[1.5px] pb-6 lg:flex-row lg:items-start"
             style={{
               borderColor: BORDER_COLOR,
               columnGap: ROW_GAP

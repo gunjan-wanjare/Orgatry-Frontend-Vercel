@@ -110,7 +110,7 @@ export function WhyChooseUsSection() {
       viewport={{ once: true, amount: 0.2 }}
     >
       <div
-        className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-[26px] pb-12 md:pb-14"
+        className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-[26px] pb-4"
         style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)` }}
       >
         <motion.header
