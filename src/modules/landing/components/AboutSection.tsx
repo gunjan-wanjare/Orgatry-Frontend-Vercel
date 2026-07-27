@@ -149,7 +149,7 @@ export function AboutSection() {
 
       {/* Fluid Responsive container (< 1440px down to Mobile) */}
       {/* lg:flex-row keeps them side-by-side down to 1024px; flex-col stacks them below 1024px */}
-      <div className="mx-auto flex max-w-[1440px] flex-col lg:flex-row lg:items-center lg:justify-between gap-12 px-6 py-16 min-[1440px]:hidden md:px-16">
+      <div className="mx-auto flex max-w-[1440px] flex-col lg:flex-row lg:items-center lg:justify-between gap-12 px-6 py-0 min-[1440px]:hidden md:px-16">
         
         <motion.div
           className="flex w-full lg:max-w-[50%] flex-col items-start gap-10"

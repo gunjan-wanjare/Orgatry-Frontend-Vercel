@@ -437,9 +437,9 @@ export function HeroSection() {
       </div>
 
       {/* —— Tablet / mobile: dashboard only (no floating metric cards) —— */}
-      <div className="relative mx-auto flex max-w-[1440px] flex-col items-center overflow-hidden px-6 pt-[160px] pb-16 sm:pt-[152px] md:pt-[148px] min-[1440px]:hidden">
+      <div className="relative mx-auto flex max-w-[1440px] flex-col items-center overflow-hidden px-6 md:pt-[160px] pb-10 pt-[140px] min-[1440px]:hidden">
         <VerticalGuideLines className="opacity-70" />
-        <div className="relative z-10 flex w-full max-w-[720px] flex-col items-center pr-14 sm:pr-16 md:max-w-none md:pr-20">
+        <div className="relative z-10 flex w-full max-w-[720px] flex-col items-center md:max-w-none md:pr-20">
           <HeroCopy onPrimary={goContact} onSecondary={goContact} layout="fluid" introReady={isContentReady} />
         </div>
         <motion.div

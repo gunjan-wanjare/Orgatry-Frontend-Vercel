@@ -15,8 +15,8 @@ import { SectionHeading } from '@/modules/landing/shared/SectionHeading';
 import { cn } from '@/lib/utils';
 
 const SECTION_GAP_TOP = landingTokens.sectionGapSm;
-const SECTION_PAD_Y_TOP = 44;
-const SECTION_PAD_Y_BOTTOM = 45;
+const SECTION_PAD_Y_TOP = 20;
+const SECTION_PAD_Y_BOTTOM = 20;
 const SECTION_STACK_GAP = 31;
 const MARQUEE_SPEED = 38;
 

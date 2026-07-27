@@ -13,7 +13,7 @@ import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
 import { cn } from '@/lib/utils';
 
 /** Figma `1:2000` — gap About→Solutions `102`. */
-const SECTION_GAP_TOP = 102;
+const SECTION_GAP_TOP = 40;
 const HEADER_WIDTH = 715;
 const GRID_MAX = 1246;
 
@@ -68,7 +68,7 @@ function SolutionsBadge() {
   return (
     <SectionBadge
       className={cn(
-        'h-[32.583px] w-[128px] justify-center rounded-[503px] border border-[#008435]',
+        'h-[32.583px] w-[238px] justify-center rounded-[503px] border border-[#008435]',
         'bg-[rgba(34,197,94,0.2)] text-base font-bold text-[#026229] [font-family:Manrope,sans-serif]'
       )}
     >
@@ -101,7 +101,7 @@ export function SolutionsSection() {
       viewport={{ once: true, amount: 0.2 }}
     >
       <div
-        className="mx-auto flex w-full max-w-[1440px] flex-col items-center pb-12 md:pb-14"
+        className="mx-auto flex w-full max-w-[1440px] flex-col items-center pb-4"
         style={{ gap: 28, paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)` }}
       >
         <motion.header

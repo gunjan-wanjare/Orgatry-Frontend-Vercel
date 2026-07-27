@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import lightLogo from '@/assets/orgatry_light_logo.png';
 import {
   memo,
   useCallback,
@@ -39,10 +40,15 @@ function OrgatryLogo({ onNavigate }: { onNavigate: () => void }) {
     <button
       type="button"
       onClick={onNavigate}
-      className="shrink-0 text-left text-[clamp(28px,4vw,36px)] font-bold leading-8 tracking-[-0.6px] text-white [font-family:Inter,sans-serif] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]"
+      className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]"
       aria-label="Orgatry home"
     >
-      Orgatry
+      <img
+        src={lightLogo}
+        alt="Orgatry"
+        className="h-8 w-auto sm:h-10"
+        loading="eager"
+      />
     </button>
   );
 }

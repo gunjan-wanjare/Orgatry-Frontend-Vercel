@@ -54,7 +54,7 @@ export function LandingPage() {
       <main className="relative min-h-screen overflow-x-hidden bg-white text-[#171717] [font-family:Inter,sans-serif]">
         <LandingNavbar />
         <HeroSection />
-        <TrustedSection />
+        {/* <TrustedSection /> */}
         <AboutSection />
         <SolutionsSection />
         <WhyChooseUsSection />
