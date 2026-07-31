@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useCallback } from 'react';
-import solutionsPhoneMockup from '@/modules/landing/assets/images/solutions-phone-mockup.png';
+// import solutionsPhoneMockup from '@/modules/landing/assets/images/solutions-phone-mockup.png';
+import solutionsPhoneMockup from '@/modules/landing/assets/images/solutions_phone_mockup.png';
 import { fadeIn, fadeInUp, featureCardStagger } from '@/modules/landing/animations/landingMotion';
 import { landingTokens } from '@/modules/landing/constants/tokens';
 import { CTA_BUTTON_CLASSNAME, ctaButtonStyle } from '@/modules/landing/constants/ctaButton';
@@ -53,7 +54,7 @@ function SolutionListItem({ title, description }: { title: string; description: 
       style={{ padding: fluid(16, 20) }}
     >
       <h3
-        className="m-0 text-[#000d00] [font-family:Sora,sans-serif]"
+        className="m-0 text-[#000d00] [font-family:'Bricolage_Grotesque',sans-serif]"
         style={{ fontSize: CARD_TITLE_SIZE, letterSpacing: '-0.03em' }}
       >
         {title}
@@ -101,7 +102,7 @@ export function SolutionsSection() {
           <div className="flex w-full flex-col items-start gap-4 lg:max-w-[720px]">
             <h2
               id="solutions-heading"
-              className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+              className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
               style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
             >
               One System for Every HR Workflow

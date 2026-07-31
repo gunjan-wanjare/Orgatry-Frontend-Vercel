@@ -73,7 +73,7 @@ function AboutCardPanel({ card, onArrowClick }: { card: AboutCard; onArrowClick:
     >
       <div className="flex w-full flex-col items-start" style={{ gap: fluid(12, 20) }}>
         <h3
-          className="m-0 text-[#000d00] [font-family:Sora,sans-serif]"
+          className="m-0 text-[#000d00] [font-family:'Bricolage_Grotesque',sans-serif]"
           style={{ fontSize: CARD_TITLE_SIZE, fontWeight: 500, letterSpacing: '-0.03em' }}
         >
           {card.title}
@@ -142,7 +142,7 @@ export function AboutSection() {
       >
         <motion.div className="flex w-full flex-col items-start gap-4 text-left" variants={fadeInUp}>
           <h2
-            className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+            className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
             style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
           >
             HR Infrastructure for Modern Enterprises
@@ -151,7 +151,7 @@ export function AboutSection() {
             className="m-0 w-full max-w-[1061px] font-normal text-[#000d00] [font-family:Jost,sans-serif]"
             style={{ fontSize: BODY_SIZE, lineHeight: 1.5 }}
           >
-            Managing people is complex. Orgatry makes it simple. Manage your entire workforce on a single platform
+            Managing people is complex. Orgatry makes it simple. Manage your entire workforce on a single platform <br className="hidden md:block" />
             with our smart, secure HR solutions.
           </p>
         </motion.div>

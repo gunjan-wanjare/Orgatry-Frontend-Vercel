@@ -42,7 +42,7 @@ function FaqItem({ id, question, answer, open, onToggle }: FaqItemProps) {
         className="flex w-full cursor-pointer items-start justify-between gap-4 bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188f44]/40 focus-visible:ring-offset-2"
       >
         <span
-          className="text-[#000d00] [font-family:Sora,sans-serif]"
+          className="text-[#000d00] [font-family:'Bricolage_Grotesque',sans-serif]"
           style={{ fontSize: QUESTION_SIZE, letterSpacing: '-0.02em' }}
         >
           {question}
@@ -100,12 +100,12 @@ export function FaqSection() {
         style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`, gap: fluid(32, 60) }}
       >
         <motion.div
-          className="flex w-full shrink-0 flex-col items-start justify-between gap-10 lg:max-w-[500px]"
+          className="flex w-full shrink-0 flex-col items-start justify-between lg:max-w-[500px] min-h-[stretch]"
           variants={fadeInUp}
         >
           <h2
             id="faq-heading"
-            className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+            className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
             style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
           >
             General questions asked by customers

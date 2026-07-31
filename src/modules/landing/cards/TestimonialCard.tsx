@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import quoteIcon from '@/modules/landing/assets/icons/testimonial-quote.svg';
+import quoteIcon from '@/modules/landing/assets/icons/testimonial-quote.png';
 import { fluid } from '@/modules/landing/utils/scale';
 import { cn } from '@/lib/utils';
 

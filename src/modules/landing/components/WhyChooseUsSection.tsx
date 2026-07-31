@@ -95,7 +95,7 @@ function WhyCardPanel({ card }: { card: WhyCard }) {
       </div>
       <div className="flex w-full flex-col items-start gap-2.5">
         <h3
-          className="m-0 text-[#000d00] [font-family:Sora,sans-serif]"
+          className="m-0 text-[#000d00] [font-family:'Bricolage_Grotesque',sans-serif]"
           style={{ fontSize: CARD_TITLE_SIZE, letterSpacing: '-0.03em' }}
         >
           {card.title}
@@ -133,7 +133,7 @@ export function WhyChooseUsSection() {
         <motion.header className="flex w-full flex-col items-start gap-4" variants={fadeInUp}>
           <h2
             id="why-us-heading"
-            className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+            className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
             style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
           >
             The Orgatry Advantage

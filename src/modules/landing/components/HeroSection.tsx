@@ -64,7 +64,7 @@ function HeroCopy({
         <motion.h1
           variants={heroItem}
           style={{ fontSize: HERO_HEADING_SIZE }}
-          className="m-0 w-full leading-[1.26] tracking-[-0.02em] text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+          className="m-0 w-full leading-[1.26] tracking-[-0.02em] text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
         >
           <span className="font-bold">Simplifying HR Management </span>
           <span className="font-thin">for a Modern Workplace</span>
@@ -142,7 +142,7 @@ export function HeroSection() {
       <VerticalGuideLines /> */}
 
       <div
-        className="relative mx-auto flex max-w-[1440px] flex-col items-center gap-12 pt-[140px] pb-16 md:pt-[160px] md:pb-20 lg:flex-row lg:items-center lg:justify-between lg:gap-10 lg:pt-[190px] lg:pb-24"
+        className="relative mx-auto flex max-w-[1440px] flex-col items-center pt-[140px] pb-16 md:pt-[160px] md:pb-20 lg:flex-row lg:items-center lg:justify-between lg:pt-[190px] lg:pb-24"
         style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)` }}
       >
         <HeroCopy onPrimary={goContact} onSecondary={goContact} introReady={isContentReady} />
@@ -156,13 +156,13 @@ export function HeroSection() {
           <img
             src={heroVisual}
             alt="Orgatry HR dashboard showing employee metrics, team performance analytics, and workforce growth statistics"
-            width={1063}
-            height={838}
+            width={2063}
+            height={1000}
             loading="eager"
             decoding="async"
             fetchPriority="high"
             draggable={false}
-            className="h-auto w-full max-w-full select-none"
+            className="h-full w-full select-none"
           />
         </motion.div>
       </div>

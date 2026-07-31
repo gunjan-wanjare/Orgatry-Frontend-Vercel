@@ -49,7 +49,7 @@ function NewsletterBlock() {
         {landingFooter.tagline}
       </p>
       <p
-        className="m-0 font-bold text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+        className="m-0 font-bold text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
         style={{ fontSize: HEADLINE_SIZE, lineHeight: 1.3 }}
       >
         {landingFooter.headline.map((line) => (
@@ -119,7 +119,7 @@ function NewsletterForm() {
       onSubmit={(event) => event.preventDefault()}
     >
       <div
-        className="flex items-center gap-2.5 rounded-[10px] border border-[rgba(4,5,5,0.24)]"
+        className="flex items-center gap-2.5 rounded-[10px] border bg-[#f3f3f5] !border-[#D4D4D499]"
         style={{ paddingInline: fluid(16, 24), paddingBlock: fluid(10, 14), width: 'min(360px, 100%)' }}
       >
         <Mail className="size-5 shrink-0 text-[rgba(4,5,5,0.8)]" aria-hidden />
@@ -128,7 +128,7 @@ function NewsletterForm() {
           name="email"
           placeholder={landingFooter.emailPlaceholder}
           aria-label={landingFooter.emailPlaceholder}
-          className="w-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[rgba(4,5,5,0.8)] outline-none [font-family:Jost,sans-serif] placeholder:text-[rgba(4,5,5,0.8)]"
+          className="w-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[#000d00] outline-none [font-family:Jost,sans-serif] placeholder:text-[rgba(4,5,5,0.6)]"
           style={{ fontSize: EMAIL_INPUT_TEXT_SIZE }}
         />
       </div>

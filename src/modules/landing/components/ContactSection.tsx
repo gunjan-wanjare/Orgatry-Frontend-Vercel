@@ -53,7 +53,7 @@ function ContactInfoList() {
         const text = (
           <>
             <p
-              className="m-0 font-bold text-[#131313] [font-family:Sora,sans-serif]"
+              className="m-0 font-bold text-[#131313] [font-family:'Bricolage_Grotesque',sans-serif]"
               style={{ fontSize: INFO_LABEL_SIZE, letterSpacing: '-0.02em' }}
             >
               {item.label}
@@ -240,7 +240,7 @@ export function ContactSection() {
           <div className="flex w-full flex-col items-start" style={{ gap: fluid(20, 32) }}>
             <h2
               id="contact-heading"
-              className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+              className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
               style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
             >
               {landingContact.heading}
