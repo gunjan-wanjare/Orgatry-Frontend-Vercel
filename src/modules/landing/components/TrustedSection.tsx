@@ -80,7 +80,7 @@ export function TrustedSection() {
     <motion.section
       aria-labelledby="trusted-heading"
       data-node-id="1:1225"
-      className="relative bg-white"
+      className="relative bg-white md:py-20 py-10"
       style={{
         marginTop: landingTokens.sectionGapLg,
         minHeight: landingTokens.trustedHeight

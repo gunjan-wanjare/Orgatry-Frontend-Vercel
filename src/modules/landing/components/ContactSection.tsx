@@ -1,131 +1,91 @@
 import { motion } from 'framer-motion';
+import { Mail, MapPin, Phone } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { type FormEvent, useId } from 'react';
-import {
-  fadeInUp,
-  revealFromLeft,
-  staggerContainer
-} from '@/modules/landing/animations/landingMotion';
+import { fadeInUp, staggerContainer } from '@/modules/landing/animations/landingMotion';
 import {
   landingContact,
   landingContactInfo
 } from '@/modules/landing/constants/content';
+import { CTA_BUTTON_CLASSNAME, ctaButtonStyle } from '@/modules/landing/constants/ctaButton';
 import { landingTokens } from '@/modules/landing/constants/tokens';
 import { LandingButton } from '@/modules/landing/shared/LandingButton';
+import { fluid } from '@/modules/landing/utils/scale';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 /**
- * Contact — Figma `1:1626` inside Footer frame `1:1564`.
- * Panel `1240×483`, radius `40`, fill `#171717`.
- * Gap Testimonials→this frame: `25` (applied on LandingPage wrapper).
+ * Contact — Figma `479:2659` (How can we help you today?).
+ * Light gray section, heading + contact-info rows on the left, a bordered
+ * white card with the enquiry form on the right.
  */
+const HEADING_SIZE = fluid(24, 36);
+const BODY_SIZE = fluid(15, 18);
+const INFO_LABEL_SIZE = fluid(16, 19);
+const INFO_VALUE_SIZE = fluid(14, 15.5);
+const FIELD_LABEL_SIZE = fluid(12.5, 14);
+const FIELD_TEXT_SIZE = fluid(13, 14);
 
-const PANEL_RADIUS = landingTokens.radiusPanel;
-const ICON_TILE = 52;
-const ICON_GLYPH = 31;
-const ICON_RADIUS = 9.75;
-const FORM_WIDTH = 354.945;
-const FIELD_GAP = 16.433;
-const LABEL_GAP = 6.573;
-const INPUT_H = 39.438;
-const INPUT_PAD = 16.433;
-const INPUT_RADIUS = 32.865;
-const MESSAGE_H = 164.326;
-const MESSAGE_RADIUS = 16.433;
-const LABEL_FS = 11.503;
+const CONTACT_ICONS: Record<string, LucideIcon> = {
+  email: Mail,
+  phone: Phone,
+  office: MapPin
+};
 
 const fieldClassName = cn(
-  'h-[39.438px] w-full border-0 bg-[#f5f5f5] p-[16.433px] text-[11.503px] leading-normal',
-  'rounded-[32.865px] text-[#171717] shadow-none [font-family:Montserrat,sans-serif]',
-  'placeholder:text-[#6d6d6d] focus:border-transparent focus:ring-2 focus:ring-[#22c55e]/45',
+  'h-[52px] w-full rounded-[10px] border !border-[#FFFFFF1A] bg-[rgba(0,0,0,0.04)] px-5 py-3 shadow-none',
+  'text-[#000d00] [font-family:Jost,sans-serif] placeholder:text-[#6d6d6d]',
+  'focus:border-[#188f44]/40 focus:ring-2 focus:ring-[#188f44]/30',
   'transition-[box-shadow,background-color] duration-200'
 );
-
-const messageClassName = cn(
-  'min-h-[164.326px] h-[164.326px] w-full resize-none border-0 bg-[#f5f5f5] p-[16.433px]',
-  'rounded-[16.433px] text-[11.503px] leading-normal text-[#171717] shadow-none',
-  '[font-family:Montserrat,sans-serif] placeholder:text-[#6d6d6d]',
-  'focus:border-transparent focus:ring-2 focus:ring-[#22c55e]/45',
-  'transition-[box-shadow,background-color] duration-200'
-);
-
-function ContactGridBackground() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden rounded-[40px] opacity-60"
-    >
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(208,213,221,0.32) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(208,213,221,0.32) 1px, transparent 1px)
-          `,
-          backgroundSize: '96px 96px'
-        }}
-      />
-      <div
-        className="absolute -left-[10%] top-[-20%] size-[420px] rounded-full opacity-40 blur-[90px]"
-        style={{ background: 'radial-gradient(circle, rgba(34,197,94,0.55) 0%, transparent 70%)' }}
-      />
-      <div
-        className="absolute -right-[5%] bottom-[-30%] size-[480px] rounded-full opacity-35 blur-[100px]"
-        style={{ background: 'radial-gradient(circle, rgba(1,247,88,0.35) 0%, transparent 70%)' }}
-      />
-    </div>
-  );
-}
 
 function ContactInfoList() {
   return (
-    <ul className="mt-[52px] flex list-none flex-col gap-[21px] p-0" aria-label="Contact information">
+    <ul
+      className="m-0 flex list-none flex-col items-start p-0"
+      style={{ gap: fluid(24, 32) }}
+      aria-label="Contact information"
+    >
       {landingContactInfo.map((item) => {
-        const content = item.multiline ? (
-          <span className="whitespace-pre-line">{item.value}</span>
-        ) : (
-          item.value
-        );
-
+        const Icon = CONTACT_ICONS[item.id];
         const text = (
-          <span className="font-medium leading-[1.24] text-[clamp(14px,1.6vw,16px)] text-white [font-family:Manrope,sans-serif]">
-            {content}
-          </span>
+          <>
+            <p
+              className="m-0 font-bold text-[#131313] [font-family:Sora,sans-serif]"
+              style={{ fontSize: INFO_LABEL_SIZE, letterSpacing: '-0.02em' }}
+            >
+              {item.label}
+            </p>
+            <p
+              className="m-0 font-normal text-[#545454] [font-family:Jost,sans-serif]"
+              style={{ fontSize: INFO_VALUE_SIZE, lineHeight: 1.6 }}
+            >
+              {item.value}
+            </p>
+          </>
         );
 
         return (
-          <li key={item.id} className="flex items-center gap-[29px]">
+          <li key={item.id} className="flex items-center" style={{ gap: fluid(16, 24) }}>
             <span
-              className="inline-flex shrink-0 items-center justify-center bg-[#434440]"
-              style={{
-                width: ICON_TILE,
-                height: ICON_TILE,
-                borderRadius: ICON_RADIUS
-              }}
+              className="inline-flex shrink-0 items-center justify-center rounded-[20px] border !border-[#D4D4D499] bg-white"
+              style={{ width: fluid(60,60), height: fluid(60,60) }}
               aria-hidden
             >
-              <img
-                src={item.iconSrc}
-                alt=""
-                width={ICON_GLYPH}
-                height={ICON_GLYPH}
-                className="size-[31px] object-contain"
-                decoding="async"
-              />
+              {Icon ? <Icon className="size-[45%] text-[#188f44]" strokeWidth={1.75} /> : null}
             </span>
             {item.href ? (
               <a
                 href={item.href}
-                className="inline-flex min-h-[52px] items-center transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#01f758]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]"
+                className="flex flex-col items-start gap-2 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188f44]/40 focus-visible:ring-offset-2"
               >
                 {text}
               </a>
             ) : (
-              text
+              <div className="flex flex-col items-start gap-2">{text}</div>
             )}
-            <span className="sr-only">{item.label}</span>
           </li>
         );
       })}
@@ -133,15 +93,13 @@ function ContactInfoList() {
   );
 }
 
-/**
- * Contact form — Figma `1:1977`. UI only; no API.
- * Field sizes match the scaled instance in the design file (fractional px).
- */
 function ContactForm() {
   const formId = useId();
-  const nameId = `${formId}-name`;
+  const firstNameId = `${formId}-first-name`;
+  const lastNameId = `${formId}-last-name`;
   const emailId = `${formId}-email`;
-  const messageId = `${formId}-message`;
+  const subjectId = `${formId}-subject`;
+  const descriptionId = `${formId}-description`;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -150,89 +108,110 @@ function ContactForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full flex-col gap-[16.433px]"
-      style={{ maxWidth: FORM_WIDTH }}
+      className="flex w-full flex-col"
+      style={{ gap: fluid(16, 20) }}
       aria-labelledby={`${formId}-title`}
     >
       <span id={`${formId}-title`} className="sr-only">
         Contact form
       </span>
 
-      <div className="flex flex-col" style={{ gap: FIELD_GAP }}>
-        <div className="flex flex-col" style={{ gap: LABEL_GAP }}>
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="flex flex-1 flex-col gap-2">
           <Label
-            htmlFor={nameId}
-            className="font-medium leading-normal text-white [font-family:Montserrat,sans-serif]"
-            style={{ fontSize: LABEL_FS }}
+            htmlFor={firstNameId}
+            className="font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+            style={{ fontSize: FIELD_LABEL_SIZE }}
           >
-            {landingContact.fields.name.label}
+            {landingContact.fields.firstName.label}
           </Label>
           <Input
-            id={nameId}
-            name="name"
+            id={firstNameId}
+            name="firstName"
             type="text"
             required
-            autoComplete="name"
-            placeholder={landingContact.fields.name.placeholder}
+            autoComplete="given-name"
+            placeholder={landingContact.fields.firstName.placeholder}
             className={fieldClassName}
-            style={{ height: INPUT_H, padding: INPUT_PAD, borderRadius: INPUT_RADIUS }}
+            style={{ fontSize: FIELD_TEXT_SIZE }}
           />
         </div>
-
-        <div className="flex flex-col" style={{ gap: LABEL_GAP }}>
+        <div className="flex flex-1 flex-col gap-2">
           <Label
-            htmlFor={emailId}
-            className="font-medium leading-normal text-white [font-family:Montserrat,sans-serif]"
-            style={{ fontSize: LABEL_FS }}
+            htmlFor={lastNameId}
+            className="font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+            style={{ fontSize: FIELD_LABEL_SIZE }}
           >
-            {landingContact.fields.email.label}
+            {landingContact.fields.lastName.label}
           </Label>
           <Input
-            id={emailId}
-            name="email"
-            type="email"
+            id={lastNameId}
+            name="lastName"
+            type="text"
             required
-            autoComplete="email"
-            placeholder={landingContact.fields.email.placeholder}
+            autoComplete="family-name"
+            placeholder={landingContact.fields.lastName.placeholder}
             className={fieldClassName}
-            style={{ height: INPUT_H, padding: INPUT_PAD, borderRadius: INPUT_RADIUS }}
-          />
-        </div>
-
-        <div className="flex flex-col" style={{ gap: LABEL_GAP }}>
-          <Label
-            htmlFor={messageId}
-            className="font-medium leading-normal text-white [font-family:Montserrat,sans-serif]"
-            style={{ fontSize: LABEL_FS }}
-          >
-            {landingContact.fields.message.label}
-          </Label>
-          <Textarea
-            id={messageId}
-            name="message"
-            required
-            placeholder={landingContact.fields.message.placeholder}
-            className={messageClassName}
-            style={{
-              height: MESSAGE_H,
-              minHeight: MESSAGE_H,
-              padding: INPUT_PAD,
-              borderRadius: MESSAGE_RADIUS
-            }}
+            style={{ fontSize: FIELD_TEXT_SIZE }}
           />
         </div>
       </div>
 
-      <LandingButton
-        type="submit"
-        variant="primary"
-        className={cn(
-          'h-[39.438px] w-full rounded-[23.827px] px-[19.719px] py-[13.146px]',
-          'bg-[linear-gradient(90deg,#22c55e_0%,#1eaf54_32.692%,#199547_64.423%,#136d34_100%)]',
-          'text-[13.146px] font-semibold leading-[16.433px] [font-family:Montserrat,sans-serif]',
-          'hover:opacity-90 focus-visible:ring-offset-[#171717]'
-        )}
-      >
+      <div className="flex flex-col gap-2">
+        <Label
+          htmlFor={emailId}
+          className="font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+          style={{ fontSize: FIELD_LABEL_SIZE }}
+        >
+          {landingContact.fields.email.label}
+        </Label>
+        <Input
+          id={emailId}
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder={landingContact.fields.email.placeholder}
+          className={fieldClassName}
+          style={{ fontSize: FIELD_TEXT_SIZE }}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label
+          htmlFor={subjectId}
+          className="font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+          style={{ fontSize: FIELD_LABEL_SIZE }}
+        >
+          {landingContact.fields.subject.label}
+        </Label>
+        <Input
+          id={subjectId}
+          name="subject"
+          type="text"
+          placeholder={landingContact.fields.subject.placeholder}
+          className={fieldClassName}
+          style={{ fontSize: FIELD_TEXT_SIZE }}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label
+          htmlFor={descriptionId}
+          className="font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+          style={{ fontSize: FIELD_LABEL_SIZE }}
+        >
+          {landingContact.fields.description.label}
+        </Label>
+        <Textarea
+          id={descriptionId}
+          name="description"
+          placeholder={landingContact.fields.description.placeholder}
+          className={cn(fieldClassName, 'min-h-[130px] resize-none py-4')}
+          style={{ fontSize: FIELD_TEXT_SIZE }}
+        />
+      </div>
+
+      <LandingButton type="submit" variant="primary" style={ctaButtonStyle} className={CTA_BUTTON_CLASSNAME}>
         {landingContact.submitLabel}
       </LandingButton>
     </form>
@@ -244,43 +223,46 @@ export function ContactSection() {
     <section
       id="contact"
       aria-labelledby="contact-heading"
-      className="relative z-10 mx-auto w-full max-w-[1240px] scroll-mt-28 px-6 lg:px-0"
+      className="relative scroll-mt-28 bg-[#f3f3f5] lg:py-20 py-10"
     >
       <motion.div
-        className="relative overflow-hidden bg-[#171717]"
-        style={{
-          minHeight: 483,
-          borderRadius: PANEL_RADIUS
-        }}
+        className="mx-auto flex w-full max-w-[1440px] flex-col items-start lg:flex-row lg:justify-between"
+        style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`, gap: fluid(40, 80) }}
         variants={staggerContainer}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.25 }}
+        viewport={{ once: true, amount: 0.15 }}
       >
-        <ContactGridBackground />
+        <motion.div
+          className="flex w-full shrink-0 flex-col items-start justify-between gap-10 lg:max-w-[420px]"
+          variants={fadeInUp}
+        >
+          <div className="flex w-full flex-col items-start" style={{ gap: fluid(20, 32) }}>
+            <h2
+              id="contact-heading"
+              className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+              style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
+            >
+              {landingContact.heading}
+            </h2>
+            <p
+              className="m-0 w-full font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+              style={{ fontSize: BODY_SIZE, lineHeight: 1.5 }}
+            >
+              {landingContact.supporting}
+            </p>
+          </div>
 
-        <div className="relative flex flex-col gap-10 px-6 pb-12 pt-9 sm:px-[68px] lg:flex-row lg:justify-between lg:gap-8 lg:pb-10 lg:pt-9">
-          <motion.div className="min-w-0 flex-1" variants={revealFromLeft}>
-            <div className="flex max-w-[764px] flex-col gap-4">
-              <h2
-                id="contact-heading"
-                className="font-bold leading-[1.24] text-[clamp(2rem,4vw,48px)] text-white [font-family:Manrope,sans-serif]"
-              >
-                {landingContact.headingBefore}
-                <span className="text-[#01f758]">{landingContact.headingAccent}</span>
-                {landingContact.headingAfter}
-              </h2>
-              <p className="max-w-[624px] text-base leading-normal text-white/80 [font-family:Inter,sans-serif]">
-                {landingContact.supporting}
-              </p>
-            </div>
-            <ContactInfoList />
-          </motion.div>
+          <ContactInfoList />
+        </motion.div>
 
-          <motion.div className="w-full shrink-0 lg:w-[354.945px]" variants={fadeInUp}>
-            <ContactForm />
-          </motion.div>
-        </div>
+        <motion.div
+          className="w-full rounded-[16px] border !border-[#D4D4D499] bg-white lg:max-w-[600px]"
+          style={{ padding: fluid(20, 32) }}
+          variants={fadeInUp}
+        >
+          <ContactForm />
+        </motion.div>
       </motion.div>
     </section>
   );

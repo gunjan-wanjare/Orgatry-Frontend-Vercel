@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
-import lightLogo from '@/assets/orgatry_light_logo.png';
+import darkLogo from '@/assets/orgatry_dark_logo.png';
 import {
   memo,
   useCallback,
@@ -20,19 +20,26 @@ import { landingTokens } from '@/modules/landing/constants/tokens';
 import { useActiveSection } from '@/modules/landing/hooks/useActiveSection';
 import { useSmoothScroll } from '@/modules/landing/hooks/useSmoothScroll';
 import { LandingButton } from '@/modules/landing/shared/LandingButton';
+import { fluid } from '@/modules/landing/utils/scale';
 import { cn } from '@/lib/utils';
 
-const NAVBAR_WIDTH = landingTokens.contentWidth;
-const NAVBAR_HEIGHT = landingTokens.navbarHeight;
-const NAVBAR_TOP = landingTokens.navbarTop;
-const NAVBAR_PAD_Y = 12;
-const NAVBAR_PAD_X = 30;
-const NAV_LINK_GAP = 50;
+/**
+ * Figma `186:119` — Header: px-120 py-30, gap-81.5, border-b, backdrop-blur.
+ * Toned down + made fluid between the `lg` breakpoint (1024) and 1440 — the
+ * desktop nav only renders at `lg:block`, so it never needs to scale below that.
+ */
+/** Same horizontal gutter every content section below uses, so the header aligns with them. */
+const HEADER_PAD_X = `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`;
+const HEADER_PAD_Y = fluid(16, 16, 1024, 1440);
+const NAV_LINK_GAP = fluid(24, 40, 1024, 1440);
+const NAV_LINK_TEXT = fluid(14, 16, 1024, 1440);
+const CTA_PAD_X = fluid(20, 28, 1024, 1440);
+const CTA_PAD_Y = fluid(10, 14, 1024, 1440);
+const CTA_TEXT = fluid(14, 15, 1024, 1440);
 
 const NAV_PILL_STYLE = {
-  backgroundColor: '#171717',
-  backgroundImage:
-    'radial-gradient(ellipse 280px 60px at 23% 70%, rgba(33,192,92,0.1) 0%, rgba(22,135,64,0) 100%)'
+  backgroundColor: '#ffffff',
+  boxShadow: '0 8px 30px rgba(15, 23, 42, 0.08)'
 } as const;
 
 function OrgatryLogo({ onNavigate }: { onNavigate: () => void }) {
@@ -40,13 +47,13 @@ function OrgatryLogo({ onNavigate }: { onNavigate: () => void }) {
     <button
       type="button"
       onClick={onNavigate}
-      className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]"
+      className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188F44]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
       aria-label="Orgatry home"
     >
       <img
-        src={lightLogo}
+        src={darkLogo}
         alt="Orgatry"
-        className="lg:h-8 h-6 w-auto"
+        className="lg:h-[40px] h-6 w-auto"
         loading="eager"
       />
     </button>
@@ -200,32 +207,21 @@ function LandingNavbarComponent() {
 
   return (
     <motion.header
-      className="pointer-events-none fixed inset-x-0 top-0 z-50"
+      className="pointer-events-none fixed inset-x-0 top-0 z-50 lg:border-b !border-[#1010101A] bg-[rgba(255,255,255,0.5)] backdrop-blur-[30px]"
       variants={navbarFadeIn}
       initial="hidden"
       animate={isContentReady ? 'visible' : 'hidden'}
     >
       <div
         className={cn(
-          'relative mx-auto hidden w-full max-w-[1440px] lg:block',
+          'relative mx-auto hidden w-full lg:block max-w-[1440px]',
           isContentReady ? 'pointer-events-auto' : 'pointer-events-none'
         )}
-        style={{ height: NAVBAR_TOP + NAVBAR_HEIGHT }}
       >
         <nav
           aria-label="Primary"
-          className="absolute left-1/2 flex -translate-x-1/2 items-center justify-between"
-          style={{
-            top: NAVBAR_TOP,
-            width: `min(${NAVBAR_WIDTH}px, calc(100% - 48px))`,
-            height: NAVBAR_HEIGHT,
-            paddingTop: NAVBAR_PAD_Y,
-            paddingBottom: NAVBAR_PAD_Y,
-            paddingLeft: NAVBAR_PAD_X,
-            paddingRight: NAVBAR_PAD_X,
-            borderRadius: landingTokens.radiusPill,
-            ...NAV_PILL_STYLE
-          }}
+          className="flex w-full items-center justify-between"
+          style={{ paddingInline: HEADER_PAD_X, paddingBlock: HEADER_PAD_Y }}
         >
           <OrgatryLogo onNavigate={handleHome} />
 
@@ -239,9 +235,10 @@ function LandingNavbarComponent() {
                     data-section-id={item.id}
                     onClick={onNavItemClick}
                     aria-current={isActive ? 'true' : undefined}
+                    style={{ fontSize: NAV_LINK_TEXT }}
                     className={cn(
-                      'text-base font-normal leading-normal text-white transition-opacity duration-200 [font-family:Inter,sans-serif] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]',
-                      isActive ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                      'leading-[1.5] transition-colors duration-200 [font-family:Inter,sans-serif] hover:text-[#188F44] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188F44]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+                      isActive ? 'font-bold text-[#188F44]' : 'font-normal text-[#3e3e3e]'
                     )}
                   >
                     {item.label}
@@ -263,7 +260,8 @@ function LandingNavbarComponent() {
               <LandingButton
                 variant="primary"
                 onClick={handleContact}
-                className="w-[150px] shrink-0"
+                style={{ paddingInline: CTA_PAD_X, paddingBlock: CTA_PAD_Y, fontSize: CTA_TEXT }}
+                className="h-auto shrink-0 bg-none bg-[#188F44] [font-family:Inter,sans-serif] shadow-[0_6px_20px_rgba(24,143,68,0.25)] hover:shadow-[0_8px_24px_rgba(24,143,68,0.32)] focus-visible:ring-[#188F44]/50 focus-visible:ring-offset-white"
                 aria-label="Get In Touch"
               >
                 Get In Touch
@@ -276,18 +274,17 @@ function LandingNavbarComponent() {
 
       <div
         className={cn(
-          'mx-auto w-full max-w-[1440px] px-4 pt-4 lg:hidden',
+          'mx-auto w-full max-w-[1440px] lg:hidden',
           isContentReady ? 'pointer-events-auto' : 'pointer-events-none'
         )}
       >
         <nav
           aria-label="Primary"
-          className="flex items-center justify-between rounded-[100px] px-4 py-3"
+          className="flex items-center justify-between px-4 py-3"
           style={{
             minHeight: 56,
             backgroundColor: NAV_PILL_STYLE.backgroundColor,
-            backgroundImage:
-              'radial-gradient(ellipse 200px 48px at 20% 70%, rgba(33,192,92,0.1) 0%, rgba(22,135,64,0) 100%)'
+            boxShadow: NAV_PILL_STYLE.boxShadow
           }}
         >
           <OrgatryLogo onNavigate={handleHome} />
@@ -304,7 +301,7 @@ function LandingNavbarComponent() {
               <LandingButton
                 variant="primary"
                 onClick={handleContact}
-                className="h-10 px-5 text-sm"
+                className="h-10 bg-none bg-[#188F44] px-5 text-sm shadow-[0_6px_20px_rgba(24,143,68,0.25)] focus-visible:ring-[#188F44]/50 focus-visible:ring-offset-white"
                 aria-label="Get In Touch"
               >
                 Get In Touch
@@ -316,7 +313,7 @@ function LandingNavbarComponent() {
             <button
               ref={menuToggleRef}
               type="button"
-              className="inline-flex size-10 items-center justify-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50"
+              className="inline-flex size-10 items-center justify-center rounded-full text-[#171717] hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188F44]/50"
               aria-expanded={mobileOpen}
               aria-controls={menuId}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -340,7 +337,7 @@ function LandingNavbarComponent() {
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -6, height: 0 }}
               transition={{ duration: landingTokens.motion.durationBase, ease: landingTokens.motion.easeOut }}
-              className="mt-2 overflow-hidden rounded-[24px] bg-[#171717]"
+              className="mt-2 overflow-hidden rounded-[24px] bg-white shadow-[0_12px_32px_rgba(15,23,42,0.12)]"
               onKeyDown={onMenuKeyDown}
             >
               <ul className="flex flex-col gap-1 p-3">
@@ -354,8 +351,8 @@ function LandingNavbarComponent() {
                         onClick={onNavItemClick}
                         aria-current={isActive ? 'true' : undefined}
                         className={cn(
-                          'w-full rounded-xl px-4 py-3 text-left text-base text-white transition-opacity [font-family:Inter,sans-serif] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/50',
-                          isActive ? 'bg-white/10 opacity-100' : 'opacity-80 hover:opacity-100'
+                          'w-full rounded-xl px-4 py-3 text-left text-base text-[#171717] transition-colors [font-family:Inter,sans-serif] hover:text-[#188F44] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188F44]/50',
+                          isActive ? 'bg-[#188F44]/10 font-medium text-[#188F44]' : 'text-[#171717]/80'
                         )}
                       >
                         {item.label}
@@ -364,7 +361,11 @@ function LandingNavbarComponent() {
                   );
                 })}
                 <li className="pt-2">
-                  <LandingButton variant="primary" onClick={handleContact} className="w-full">
+                  <LandingButton
+                    variant="primary"
+                    onClick={handleContact}
+                    className="w-full bg-none bg-[#188F44] shadow-[0_6px_20px_rgba(24,143,68,0.25)] focus-visible:ring-[#188F44]/50 focus-visible:ring-offset-white"
+                  >
                     Get In Touch
                   </LandingButton>
                 </li>

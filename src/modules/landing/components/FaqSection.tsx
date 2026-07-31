@@ -1,32 +1,20 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useId } from 'react';
-import faqMinus from '@/modules/landing/assets/icons/faq-minus.svg';
-import faqPlus from '@/modules/landing/assets/icons/faq-plus.svg';
-import { fadeIn, fadeInUp, faqAccordion } from '@/modules/landing/animations/landingMotion';
+import { fadeIn, fadeInUp, faqAccordion, featureCardStagger } from '@/modules/landing/animations/landingMotion';
 import { landingFaqs } from '@/modules/landing/constants/content';
 import { landingTokens } from '@/modules/landing/constants/tokens';
+import { CTA_BUTTON_CLASSNAME, ctaButtonStyle } from '@/modules/landing/constants/ctaButton';
 import { useFaqAccordion } from '@/modules/landing/hooks/useFaqAccordion';
-import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
-import { cn } from '@/lib/utils';
+import { useSmoothScroll } from '@/modules/landing/hooks/useSmoothScroll';
+import { LandingButton } from '@/modules/landing/shared/LandingButton';
+import { fluid } from '@/modules/landing/utils/scale';
 
-/** Figma `1:1532` — gap Why→FAQ ≈ `86.4`. */
-const SECTION_GAP_TOP = landingTokens.sectionGapMd;
-const COLUMN_GAP = 107;
-const ACCORDION_WIDTH = 730;
-const BORDER = 'border-[rgba(23,23,23,0.12)]';
-
-function FaqBadge() {
-  return (
-    <SectionBadge
-      className={cn(
-        'h-[23px] w-[73px] justify-center rounded-[50px] border border-[#008435]',
-        'bg-[rgba(34,197,94,0.2)] text-base font-bold text-[#02431d] [font-family:Manrope,sans-serif]'
-      )}
-    >
-      FAQ’S
-    </SectionBadge>
-  );
-}
+/** Figma `273:3605` — heading 48 / body 24, toned down + fluid. */
+const HEADING_SIZE = fluid(24, 36);
+const BODY_SIZE = fluid(15, 18);
+const QUESTION_SIZE = fluid(16, 20);
+const ANSWER_SIZE = fluid(14, 18);
 
 type FaqItemProps = {
   id: string;
@@ -34,22 +22,16 @@ type FaqItemProps = {
   answer: string;
   open: boolean;
   onToggle: () => void;
-  isFirst: boolean;
 };
 
-function FaqItem({ id, question, answer, open, onToggle, isFirst }: FaqItemProps) {
+function FaqItem({ id, question, answer, open, onToggle }: FaqItemProps) {
   const panelId = `${id}-panel`;
   const headerId = `${id}-header`;
 
   return (
     <div
-      className={cn(
-        'flex w-full flex-col items-start px-5 py-8',
-        BORDER,
-        'border-b-[1.5px] border-solid',
-        isFirst && 'border-t-[1.5px]',
-        open && 'gap-5'
-      )}
+      className="flex w-full flex-col items-start gap-2.5 rounded-[16px] border !border-[#D4D4D499] bg-white"
+      style={{ padding: fluid(16, 20) }}
     >
       <button
         type="button"
@@ -57,20 +39,16 @@ function FaqItem({ id, question, answer, open, onToggle, isFirst }: FaqItemProps
         aria-expanded={open}
         aria-controls={panelId}
         onClick={onToggle}
-        className="flex w-full cursor-pointer items-center justify-between gap-4 bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803d]/40 focus-visible:ring-offset-2"
+        className="flex w-full cursor-pointer items-start justify-between gap-4 bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#188f44]/40 focus-visible:ring-offset-2"
       >
-        <span className="max-w-[672px] text-[clamp(15px,2.6vw,20px)] leading-normal font-semibold text-[#171717] [font-family:Manrope,sans-serif]">
+        <span
+          className="text-[#000d00] [font-family:Sora,sans-serif]"
+          style={{ fontSize: QUESTION_SIZE, letterSpacing: '-0.02em' }}
+        >
           {question}
         </span>
-        <span className="relative size-6 shrink-0" aria-hidden>
-          <img
-            src={open ? faqMinus : faqPlus}
-            alt=""
-            width={24}
-            height={24}
-            className="size-6"
-            decoding="async"
-          />
+        <span className="mt-0.5 shrink-0 text-[#000d00]" aria-hidden>
+          {open ? <ChevronUp className="size-5" /> : <ChevronDown className="size-5" />}
         </span>
       </button>
 
@@ -86,7 +64,10 @@ function FaqItem({ id, question, answer, open, onToggle, isFirst }: FaqItemProps
             exit="collapsed"
             className="w-full overflow-hidden"
           >
-            <p className="m-0 max-w-[575px] text-base leading-normal font-normal text-[#595959] [font-family:Inter,sans-serif]">
+            <p
+              className="m-0 font-normal text-[#878c91] [font-family:Jost,sans-serif]"
+              style={{ fontSize: ANSWER_SIZE, lineHeight: 1.5 }}
+            >
               {answer}
             </p>
           </motion.div>
@@ -97,70 +78,68 @@ function FaqItem({ id, question, answer, open, onToggle, isFirst }: FaqItemProps
 }
 
 /**
- * FAQ — Figma `1:1532`.
- * Horizontal SPACE_BETWEEN · pad `0 100` · gap `107` · accordion `730`.
+ * FAQ — Figma `273:3605`. Heading + supporting copy + CTA on the left,
+ * a stack of bordered accordion cards on the right (no badge in this design).
  */
 export function FaqSection() {
   const listId = useId();
   const { isOpen, toggle } = useFaqAccordion(landingFaqs[0]?.id ?? null);
+  const { scrollToSection } = useSmoothScroll();
 
   return (
     <motion.section
       aria-labelledby="faq-heading"
-      data-node-id="1:1532"
-      className="relative bg-white"
-      style={{ marginTop: SECTION_GAP_TOP }}
+      className="relative bg-white md:py-20 py-10"
       variants={fadeIn}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.25 }}
+      viewport={{ once: true, amount: 0.2 }}
     >
       <div
-        className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-12 lg:flex-row lg:gap-[107px]"
-        style={{
-          paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`,
-          columnGap: COLUMN_GAP
-        }}
+        className="mx-auto flex w-full max-w-[1440px] flex-col items-start lg:flex-row lg:justify-between"
+        style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`, gap: fluid(32, 60) }}
       >
         <motion.div
-          className="flex w-full max-w-[290px] shrink-0 flex-col items-start"
+          className="flex w-full shrink-0 flex-col items-start justify-between gap-10 lg:max-w-[500px]"
           variants={fadeInUp}
-          data-node-id="1:1533"
         >
-          <div className="relative mb-0 w-full max-w-[267px] min-[1024px]:min-h-[241px]" data-node-id="1:1534">
-            <div className="mb-4 min-[1024px]:absolute min-[1024px]:top-0 min-[1024px]:left-0 min-[1024px]:mb-0">
-              <FaqBadge />
-            </div>
-            <h2
-              id="faq-heading"
-              className="m-0 w-full text-[clamp(32px,5vw,48px)] leading-normal font-bold text-[#171717] [font-family:Manrope,sans-serif] min-[1024px]:absolute min-[1024px]:top-[29px] min-[1024px]:left-0 min-[1024px]:w-[267px] min-[1024px]:text-[48px]"
-              data-node-id="1:1537"
-            >
-              Frequently Asked Questions
-            </h2>
-          </div>
+          <h2
+            id="faq-heading"
+            className="m-0 w-full text-[#000d00] capitalize [font-family:Sora,sans-serif]"
+            style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
+          >
+            General questions asked by customers
+          </h2>
 
-          <div className="mt-6 flex flex-col items-start gap-4 min-[1024px]:mt-0" data-node-id="1:1538">
-            <p className="m-0 text-base font-medium text-[#595959] [font-family:Inter,sans-serif]">
-              Ask any questions
-            </p>
-            <a
-              href="mailto:hello@orgatry.com"
-              className="break-all text-[clamp(22px,5vw,32px)] leading-normal font-medium text-[#15803d] no-underline transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803d]/40 [font-family:Inter,sans-serif] sm:break-normal sm:whitespace-nowrap"
+          <div className="flex w-full flex-col items-start gap-6">
+            <p
+              className="m-0 w-full font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+              style={{ fontSize: BODY_SIZE, lineHeight: 1.5 }}
             >
-              hello@orgatry.com
-            </a>
+              Our friendly team is always here to help you with quick, clear and reliable answers whenever needed.
+            </p>
+            <LandingButton
+              variant="primary"
+              onClick={() => scrollToSection('contact')}
+              style={ctaButtonStyle}
+              className={CTA_BUTTON_CLASSNAME}
+              aria-label="Get in touch"
+            >
+              Get In Touch
+            </LandingButton>
           </div>
         </motion.div>
 
         <motion.div
           id={listId}
           className="flex w-full flex-col items-start"
-          style={{ maxWidth: ACCORDION_WIDTH }}
-          variants={fadeInUp}
-          data-node-id="1:1541"
+          style={{ gap: fluid(16, 20) }}
+          variants={featureCardStagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.15 }}
         >
-          {landingFaqs.map((faq, index) => (
+          {landingFaqs.map((faq) => (
             <FaqItem
               key={faq.id}
               id={faq.id}
@@ -168,7 +147,6 @@ export function FaqSection() {
               answer={faq.answer}
               open={isOpen(faq.id)}
               onToggle={() => toggle(faq.id)}
-              isFirst={index === 0}
             />
           ))}
         </motion.div>

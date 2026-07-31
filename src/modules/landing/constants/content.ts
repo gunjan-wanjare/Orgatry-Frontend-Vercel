@@ -6,14 +6,15 @@ import type {
   SocialLink,
   Testimonial
 } from '@/modules/landing/types/landing.types';
-import contactAddressIcon from '@/modules/landing/assets/icons/contact-address.svg';
-import contactEmailIcon from '@/modules/landing/assets/icons/contact-email.svg';
-import contactPhoneIcon from '@/modules/landing/assets/icons/contact-phone.svg';
-import contactWebIcon from '@/modules/landing/assets/icons/contact-web.svg';
 import socialFacebookIcon from '@/modules/landing/assets/icons/social-facebook.svg';
 import socialInstagramIcon from '@/modules/landing/assets/icons/social-instagram.svg';
 import socialTwitterIcon from '@/modules/landing/assets/icons/social-twitter.svg';
 import socialYoutubeIcon from '@/modules/landing/assets/icons/social-youtube.svg';
+import testimonialAvatarPriya from '@/modules/landing/assets/images/testimonial-avatar-priya.png';
+import testimonialAvatarAmit from '@/modules/landing/assets/images/testimonial-avatar-amit.png';
+import testimonialAvatarSneha from '@/modules/landing/assets/images/testimonial-avatar-sneha.png';
+import testimonialAvatarRahul from '@/modules/landing/assets/images/testimonial-avatar-rahul.png';
+import testimonialAvatarRohit from '@/modules/landing/assets/images/testimonial-avatar-rohit.png';
 import { landingNavItems } from '@/modules/landing/constants/navigation';
 
 export const landingNavigation: NavigationItem[] = landingNavItems;
@@ -44,101 +45,92 @@ export const landingFaqs: FAQ[] = [
   }
 ];
 
-/** Indian personas — no avatars (marquee testimonials). */
+/** Indian personas — marquee testimonials. Rahul/Priya/Rohit have Figma avatars; Amit/Sneha fall back to initials. */
 export const landingTestimonials: Testimonial[] = [
   {
     id: 't-rahul',
     quote:
       'Leave approvals used to sit in email for days. With Orgatry, managers clear requests the same morning and balances stay accurate without someone updating a sheet.',
     name: 'Rahul Sharma',
-    role: 'HR Manager'
+    role: 'HR Manager',
+    avatarSrc: testimonialAvatarRahul
   },
   {
     id: 't-priya',
     quote:
       'We run hybrid shifts across two cities. Attendance finally matches what people actually work, and payroll stopped calling us every month about missing punches.',
     name: 'Priya Mehta',
-    role: 'People Operations Lead'
+    role: 'People Operations Lead',
+    avatarSrc: testimonialAvatarPriya
   },
   {
     id: 't-amit',
     quote:
       'Onboarding used to mean three tools and a shared drive. Now documents, offers, and day-one access live in one place. New hires get productive faster.',
     name: 'Amit Verma',
-    role: 'HR Director'
+    role: 'HR Director',
+    avatarSrc: testimonialAvatarAmit
   },
   {
     id: 't-sneha',
     quote:
       'As a founder I needed HR that does not need a full-time admin. Orgatry covered leave, attendance, and payslips without asking us to hire more process people.',
     name: 'Sneha Kapoor',
-    role: 'Founder'
+    role: 'Founder',
+    avatarSrc: testimonialAvatarSneha
   },
   {
     id: 't-rohit',
     quote:
       'Month-end used to mean reconciling overtime by hand. The reports in Orgatry are close enough that finance and ops review once and move on.',
     name: 'Rohit Bansal',
-    role: 'Operations Head'
+    role: 'Operations Head',
+    avatarSrc: testimonialAvatarRohit
   }
 ];
 
-/** Contact panel copy from Figma `1:1626`. */
+/** Contact panel copy — Figma `479:2659`. */
 export const landingContact = {
-  headingBefore: "Let's Build Your HR System.",
-  headingAccent: '',
-  headingAfter: '',
+  heading: 'How can we help you today?',
   supporting: "Tell us about your business. We'll show you how Orgatry fits.",
   submitLabel: 'Submit',
   fields: {
-    name: { label: 'Name', placeholder: 'Name' },
-    email: { label: 'Email', placeholder: 'name@email.com' },
-    message: { label: 'Message', placeholder: 'Message' }
+    firstName: { label: 'Full Name*', placeholder: 'Enter your first name' },
+    lastName: { label: 'Last Name*', placeholder: 'Enter your last name' },
+    email: { label: 'Email', placeholder: 'Enter your email' },
+    subject: { label: 'Subject', placeholder: 'Enter your subject' },
+    description: { label: 'Description', placeholder: 'Please describe what you need' }
   }
 } as const;
 
 export const landingContactInfo: ContactInfoItem[] = [
   {
-    id: 'address',
-    label: 'Address',
-    value: 'Sattva Knowledge City, Hi-Tec City,\nHyderabad.',
-    iconSrc: contactAddressIcon,
-    multiline: true
+    id: 'email',
+    label: 'Email',
+    value: 'hello@orgatry.com',
+    href: 'mailto:hello@orgatry.com'
   },
   {
     id: 'phone',
     label: 'Phone',
     value: '+91 1234567890',
-    href: 'tel:+911234567890',
-    iconSrc: contactPhoneIcon
+    href: 'tel:+911234567890'
   },
   {
-    id: 'email',
-    label: 'Email',
-    value: 'hello@Orgatry.com',
-    href: 'mailto:hello@Orgatry.com',
-    iconSrc: contactEmailIcon
-  },
-  {
-    id: 'website',
-    label: 'Website',
-    value: 'Orgatry.com',
-    href: 'https://Orgatry.com',
-    iconSrc: contactWebIcon
+    id: 'office',
+    label: 'Office',
+    value: 'Sattva Knowledge City, Hi-Tec City, Hyderabad.'
   }
 ];
 
-/** Footer newsletter + links from Figma `1:1566`. */
+/** Footer newsletter + links — Figma `285:365`. */
 export const landingFooter = {
   brand: 'Orgatry',
-  subscribeTitle: 'Subscribe',
-  subscribeDescription: 'Stay updated on Orgatry HR solutions, features, and releases.',
+  tagline: 'A YAKA Enterprise',
+  headline: ['Your Trusted Partner,', 'Because Employee Matters'] as const,
   emailPlaceholder: 'Enter your email',
   subscribeButton: 'Subscribe',
-  privacyPrefix: 'By subscribing you agree to with our ',
-  privacyLabel: 'Privacy Policy',
-  privacyHref: '/privacy-policy',
-  copyright: 'Copyright © 2025. All Rights Reserved'
+  copyright: 'Copyright © 2026. All Rights Reserved'
 } as const;
 
 export const landingFooterColumns: FooterLinkColumn[] = [
@@ -147,8 +139,8 @@ export const landingFooterColumns: FooterLinkColumn[] = [
     title: 'Quick Links',
     links: [
       { label: 'Home', href: '/#home' },
-      { label: 'About', href: '/#about' },
-      { label: 'Services', href: '/#solutions' },
+      { label: 'About Us', href: '/#about' },
+      { label: 'Service', href: '/#solutions' },
       { label: 'Contact', href: '/#contact' }
     ]
   },
@@ -167,7 +159,7 @@ export const landingFooterColumns: FooterLinkColumn[] = [
     title: 'Legal',
     links: [
       { label: 'Privacy Policy', href: '/privacy-policy', openInNewTab: true },
-      { label: 'Terms & Conditions', href: '/terms-and-conditions', openInNewTab: true }
+      { label: 'T&C', href: '/terms-and-conditions', openInNewTab: true }
     ]
   }
 ];

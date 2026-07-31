@@ -47,8 +47,6 @@ export type ContactInfoItem = {
   label: string;
   value: string;
   href?: string;
-  iconSrc: string;
-  multiline?: boolean;
 };
 
 export type FooterLink = {
