@@ -100,7 +100,7 @@ export function FaqSection() {
         style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`, gap: fluid(32, 60) }}
       >
         <motion.div
-          className="flex w-full shrink-0 flex-col items-start justify-between lg:max-w-[500px] min-h-[stretch]"
+          className="flex w-full shrink-0 flex-col items-start justify-between lg:max-w-[500px] lg:min-h-[stretch]"
           variants={fadeInUp}
         >
           <h2
