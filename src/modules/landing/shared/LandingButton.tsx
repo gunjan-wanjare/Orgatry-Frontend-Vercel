@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { LandingButtonVariant } from '@/modules/landing/types/landing.types';
 
@@ -6,6 +6,7 @@ export type LandingButtonProps = {
   children: ReactNode;
   variant?: LandingButtonVariant;
   className?: string;
+  style?: CSSProperties;
   type?: 'button' | 'submit' | 'reset';
   disabled?: boolean;
   onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick'];
@@ -30,6 +31,7 @@ export function LandingButton({
   children,
   variant = 'primary',
   className,
+  style,
   type = 'button',
   disabled,
   onClick,
@@ -42,6 +44,7 @@ export function LandingButton({
       onClick={onClick}
       aria-label={ariaLabel}
       data-landing-variant={variant}
+      style={style}
       className={cn(
         'inline-flex shrink-0 cursor-pointer items-center justify-center gap-2.5 whitespace-nowrap transition-[opacity,box-shadow] duration-300 ease-out disabled:pointer-events-none disabled:opacity-50',
         variantClassName[variant],

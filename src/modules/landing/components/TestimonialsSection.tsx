@@ -10,28 +10,12 @@ import {
 import { fadeIn, fadeInUp } from '@/modules/landing/animations/landingMotion';
 import { landingTestimonials } from '@/modules/landing/constants/content';
 import { landingTokens } from '@/modules/landing/constants/tokens';
-import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
-import { SectionHeading } from '@/modules/landing/shared/SectionHeading';
-import { cn } from '@/lib/utils';
+import { fluid } from '@/modules/landing/utils/scale';
 
-const SECTION_GAP_TOP = landingTokens.sectionGapSm;
-const SECTION_PAD_Y_TOP = 20;
-const SECTION_PAD_Y_BOTTOM = 20;
-const SECTION_STACK_GAP = 31;
+/** Figma `285:186` — heading 48 / body 24, toned down + fluid. No badge in this design. */
+const HEADING_SIZE = fluid(24, 36);
+const BODY_SIZE = fluid(15, 18);
 const MARQUEE_SPEED = 38;
-
-function TestimonialsBadge() {
-  return (
-    <SectionBadge
-      className={cn(
-        'h-[31px] w-[136px] justify-center rounded-[503px] border border-[#008435]',
-        'bg-[rgba(34,197,94,0.2)] text-[15px] font-bold text-[#02431d] [font-family:Manrope,sans-serif]'
-      )}
-    >
-      Testimonials
-    </SectionBadge>
-  );
-}
 
 function cardWidthForViewport(width: number) {
   if (width < 768) return Math.min(TESTIMONIAL_CARD_WIDTH_MOBILE, width - 40);
@@ -40,7 +24,10 @@ function cardWidthForViewport(width: number) {
 }
 
 /**
- * Testimonials — full-bleed marquee with responsive card density.
+ * Testimonials — Figma `285:186` (What Our Happy Clients Are Saying).
+ * Left-aligned heading/body, then a full-bleed marquee of bordered cards
+ * (kept as a marquee for variety across 5 personas — Figma shows a static
+ * 3-card row, but the extra motion doesn't change the section's structure).
  */
 export function TestimonialsSection() {
   const x = useMotionValue(0);
@@ -89,53 +76,35 @@ export function TestimonialsSection() {
   return (
     <motion.section
       aria-labelledby="testimonials-heading"
-      data-node-id="1:2122"
-      className="relative overflow-x-hidden bg-white"
-      style={{
-        marginTop: SECTION_GAP_TOP,
-        paddingTop: SECTION_PAD_Y_TOP,
-        paddingBottom: SECTION_PAD_Y_BOTTOM
-      }}
+      className="relative overflow-x-hidden bg-[#f3f3f5] md:py-20 py-10"
       variants={fadeIn}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.15 }}
     >
-      <div
-        className="mx-auto flex w-full max-w-[1240px] flex-col items-center px-6 lg:px-0"
-        style={{ gap: SECTION_STACK_GAP }}
+      <motion.div
+        variants={fadeInUp}
+        className="mx-auto flex w-full max-w-[1440px] flex-col items-start gap-4"
+        style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)` }}
       >
-        <motion.div variants={fadeInUp}>
-          <TestimonialsBadge />
-        </motion.div>
-
-        <motion.div variants={fadeInUp} className="w-full max-w-[564px]">
-          <SectionHeading
-            alignment="center"
-            className="w-full gap-5"
-            title={
-              <h2
-                id="testimonials-heading"
-                className="m-0 max-w-[564px] text-center text-[clamp(28px,4vw,45.6px)] font-bold capitalize leading-normal text-[#00173c] [font-family:Manrope,sans-serif]"
-              >
-                What Our Happy Clients
-                <br />
-                Are Saying
-              </h2>
-            }
-            subtitle={
-              <p className="m-0 max-w-[564px] text-center text-[clamp(15px,2.5vw,19px)] font-normal leading-[1.5] text-[#576a8a] [font-family:Inter,sans-serif]">
-                Hear from satisfied clients who have transformed their property management experience with our
-                platform.
-              </p>
-            }
-          />
-        </motion.div>
-      </div>
+        <h2
+          id="testimonials-heading"
+          className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
+          style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
+        >
+          What Our Happy Clients Are Saying
+        </h2>
+        <p
+          className="w-full max-w-[720px] font-normal text-[#000d00] [font-family:Jost,sans-serif] mb-8"
+          style={{ fontSize: BODY_SIZE, lineHeight: 1.5 }}
+        >
+          Hear from satisfied clients who have transformed their property management<br className="hidden md:block" /> experience with our platform.
+        </p>
+      </motion.div>
 
       <motion.div
         variants={fadeInUp}
-        className="relative mt-6 w-full sm:mt-8"
+        className="relative w-full"
         onMouseEnter={() => {
           if (!isTouchRef.current) setPaused(true);
         }}
@@ -158,6 +127,7 @@ export function TestimonialsSection() {
                 quote={item.quote}
                 name={item.name}
                 role={item.role}
+                avatarSrc={item.avatarSrc}
                 width={cardWidth}
               />
             ))}

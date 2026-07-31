@@ -1,85 +1,78 @@
 import { motion } from 'framer-motion';
 import { useCallback } from 'react';
-import solutionCustom from '@/modules/landing/assets/icons/solution-custom.svg';
-import solutionEmployee from '@/modules/landing/assets/icons/solution-employee.svg';
-import solutionLeave from '@/modules/landing/assets/icons/solution-leave.svg';
-import solutionPayroll from '@/modules/landing/assets/icons/solution-payroll.svg';
-import solutionRecruit from '@/modules/landing/assets/icons/solution-recruit.svg';
+// import solutionsPhoneMockup from '@/modules/landing/assets/images/solutions-phone-mockup.png';
+import solutionsPhoneMockup from '@/modules/landing/assets/images/solutions_phone_mockup.png';
 import { fadeIn, fadeInUp, featureCardStagger } from '@/modules/landing/animations/landingMotion';
-import { LandingFeatureCard } from '@/modules/landing/cards/LandingFeatureCard';
 import { landingTokens } from '@/modules/landing/constants/tokens';
+import { CTA_BUTTON_CLASSNAME, ctaButtonStyle } from '@/modules/landing/constants/ctaButton';
 import { useSmoothScroll } from '@/modules/landing/hooks/useSmoothScroll';
-import { SectionBadge } from '@/modules/landing/shared/SectionBadge';
-import { cn } from '@/lib/utils';
+import { LandingButton } from '@/modules/landing/shared/LandingButton';
+import { fluid } from '@/modules/landing/utils/scale';
 
-/** Figma `1:2000` — gap About→Solutions `102`. */
-const SECTION_GAP_TOP = 40;
-const HEADER_WIDTH = 715;
-const GRID_MAX = 1246;
+/** Figma `273:2760` — heading 48 / body 24, toned down + fluid. */
+const HEADING_SIZE = fluid(24, 36);
+const BODY_SIZE = fluid(15, 18);
+const CARD_TITLE_SIZE = fluid(17, 20);
+const CARD_BODY_SIZE = fluid(14, 15.5);
 
-const SOLUTION_CARDS = [
+const SOLUTION_ITEMS = [
   {
     id: 'employee',
     title: 'Employee Management',
-    description: 'Manage every employee record with organized HR workflows.',
-    icon: solutionEmployee,
-    iconSize: 37,
-    descriptionClassName: 'max-w-[340px]'
+    description:
+      'Manage your complete employee lifecycle with centralized records, onboarding, and HR workflows for every department.'
   },
   {
     id: 'compliance',
     title: 'Employee Compliance',
     description:
-      'Get a complete compliance view of every employee, right from previous companies worked at, number of offers held, hike history, to absconding records, all in one place.',
-    icon: solutionPayroll,
-    iconSize: 30,
-    descriptionClassName: 'max-w-[370px]'
+      'Get a complete compliance view of every employee, right from previous companies worked at, number of offers held, hike history, to absconding records, all in one place.'
   },
   {
     id: 'leave',
     title: 'Leave & Performance',
     description:
-      'With our comprehensive performance management software, track leaves, goals, performance, and appraisals in one place.',
-    icon: solutionLeave,
-    iconSize: 39,
-    descriptionClassName: 'max-w-[328px]'
+      'With our comprehensive performance management software, track leaves, goals, performance, and appraisals in one place.'
   },
   {
     id: 'recruit',
     title: 'Recruitment & Onboarding',
-    description:
-      'Hire and onboard top talent faster without any paperwork with digital onboarding software.',
-    icon: solutionRecruit,
-    iconSize: 37,
-    descriptionClassName: 'max-w-[342px]'
+    description: 'Hire and onboard top talent faster without any paperwork with digital onboarding software.'
+  },
+  {
+    id: 'custom',
+    title: 'Need a Custom HR Solution?',
+    description: 'Build the HR system your business actually needs.'
   }
 ] as const;
 
-const CUSTOM_SOLUTION_CARD = {
-  id: 'custom',
-  title: 'Need a Custom HR Solution?',
-  description: 'Build the HR system your business actually needs.',
-  icon: solutionCustom,
-  iconSize: 39,
-  descriptionClassName: 'max-w-[332px]'
-} as const;
-
-function SolutionsBadge() {
+function SolutionListItem({ title, description }: { title: string; description: string }) {
   return (
-    <SectionBadge
-      className={cn(
-        'h-[32.583px] w-[238px] justify-center rounded-[503px] border border-[#008435]',
-        'bg-[rgba(34,197,94,0.2)] text-base font-bold text-[#026229] [font-family:Manrope,sans-serif]'
-      )}
+    <motion.div
+      variants={fadeInUp}
+      className="flex w-full flex-col items-start gap-2.5 rounded-[16px] border !border-[#D4D4D499] bg-white"
+      style={{ padding: fluid(16, 20) }}
     >
-      Comprehensive HR Solutions
-    </SectionBadge>
+      <h3
+        className="m-0 text-[#000d00] [font-family:'Bricolage_Grotesque',sans-serif]"
+        style={{ fontSize: CARD_TITLE_SIZE, letterSpacing: '-0.03em' }}
+      >
+        {title}
+      </h3>
+      <p
+        className="m-0 font-normal text-[#878c91] [font-family:Jost,sans-serif]"
+        style={{ fontSize: CARD_BODY_SIZE, lineHeight: 1.5 }}
+      >
+        {description}
+      </p>
+    </motion.div>
   );
 }
 
 /**
- * Solutions — Figma `1:2000` (Comprehensive HR Solutions).
- * Vertical stack gap `28` · header `715` gap `26` · grid gaps ~`21–22` × `20`.
+ * Solutions — Figma `273:2760` (One System for Every HR Workflow).
+ * Heading + CTA row, then a phone-mockup image beside a stacked list of
+ * five workflow items (not a card grid).
  */
 export function SolutionsSection() {
   const { scrollToSection } = useSmoothScroll();
@@ -92,87 +85,73 @@ export function SolutionsSection() {
     <motion.section
       id="solutions"
       aria-labelledby="solutions-heading"
-      data-node-id="1:2000"
-      className="relative scroll-mt-28 overflow-x-hidden bg-white"
-      style={{ marginTop: SECTION_GAP_TOP }}
+      className="relative scroll-mt-4 overflow-x-hidden bg-white md:py-20 py-10"
       variants={fadeIn}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.15 }}
     >
       <div
-        className="mx-auto flex w-full max-w-[1440px] flex-col items-center pb-4"
-        style={{ gap: 28, paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)` }}
+        className="mx-auto flex w-full max-w-[1440px] flex-col items-start"
+        style={{ paddingInline: `clamp(1.5rem, 6vw, ${landingTokens.gutter}px)`, gap: fluid(32, 60) }}
       >
         <motion.header
-          className="flex w-full flex-col items-center"
-          style={{ maxWidth: HEADER_WIDTH, gap: 26 }}
+          className="flex w-full flex-col items-start justify-between gap-6 lg:flex-row lg:items-start"
           variants={fadeInUp}
-          data-node-id="1:2001"
         >
-          <SolutionsBadge />
-          <h2
-            id="solutions-heading"
-            className="m-0 w-full text-center text-[clamp(32px,4vw,48px)] font-bold text-[#171717] [font-family:Manrope,sans-serif]"
-            data-node-id="1:2005"
+          <div className="flex w-full flex-col items-start gap-4 lg:max-w-[720px]">
+            <h2
+              id="solutions-heading"
+              className="m-0 w-full text-[#000d00] capitalize [font-family:'Bricolage_Grotesque',sans-serif]"
+              style={{ fontSize: HEADING_SIZE, fontWeight: 500 }}
+            >
+              One System for Every HR Workflow
+            </h2>
+            <p
+              className="m-0 w-full max-w-[720px] font-normal text-[#000d00] [font-family:Jost,sans-serif]"
+              style={{ fontSize: BODY_SIZE, lineHeight: 1.5 }}
+            >
+              Our end-to-end HRMS software for workforce management eliminates all manual work to drive your business
+              growth.
+            </p>
+          </div>
+          <LandingButton
+            variant="primary"
+            onClick={goContact}
+            style={ctaButtonStyle}
+            className={CTA_BUTTON_CLASSNAME}
+            aria-label="Get in touch"
           >
-            One System for Every HR Workflow
-          </h2>
-          <p
-            className="m-0 w-full text-center text-base leading-[23.448px] font-semibold text-[#595959] [font-family:Inter,sans-serif]"
-            data-node-id="1:2006"
-          >
-            Our end-to-end HRMS software for workforce management eliminates all manual work to drive your business
-            growth.
-          </p>
+            Get In Touch
+          </LandingButton>
         </motion.header>
 
-        <motion.div
-          className="grid w-full grid-cols-1 gap-x-[21px] gap-y-5 md:grid-cols-2 lg:grid-cols-3"
-          style={{ maxWidth: GRID_MAX }}
-          variants={featureCardStagger}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.15 }}
-          data-node-id="1:2007"
-        >
-          {SOLUTION_CARDS.map((card) => (
-            <LandingFeatureCard
-              key={card.id}
-              variant="panel"
-              density="solution"
-              background="white"
-              iconSrc={card.icon}
-              iconSize={card.iconSize}
-              title={card.title}
-              description={card.description}
-              descriptionClassName={card.descriptionClassName}
-              onLearnMore={goContact}
-              learnMoreHref="#contact"
+        <div className="flex w-full flex-col items-center gap-10 lg:flex-row lg:items-stretch lg:gap-12">
+          <motion.div
+            className="w-full max-w-[600px] shrink-0 w-full m-auto"
+            variants={fadeInUp}
+          >
+            <img
+              src={solutionsPhoneMockup}
+              alt="Orgatry mobile app home screen showing quick access shortcuts, tasks, attendance, leave balance, and payslip"
+              loading="lazy"
+              decoding="async"
+              className="h-auto w-full max-w-full select-none"
             />
-          ))}
-          <LandingFeatureCard
-            variant="cta"
-            title="HR Analytics & Reports"
-            description="Make informed HR decisions with real-time workforce data and customizable reports."
-            ctaLabel="Get in Touch"
-            onCtaClick={goContact}
-          />
-          <LandingFeatureCard
-            key={CUSTOM_SOLUTION_CARD.id}
-            variant="panel"
-            density="solution"
-            background="white"
-            iconSrc={CUSTOM_SOLUTION_CARD.icon}
-            iconSize={CUSTOM_SOLUTION_CARD.iconSize}
-            title={CUSTOM_SOLUTION_CARD.title}
-            description={CUSTOM_SOLUTION_CARD.description}
-            descriptionClassName={CUSTOM_SOLUTION_CARD.descriptionClassName}
-            onLearnMore={goContact}
-            learnMoreHref="#contact"
-            learnMoreLabel="Get in Touch"
-          />
-        </motion.div>
+          </motion.div>
+
+          <motion.div
+            className="flex w-full flex-col items-start gap-4 lg:flex-1"
+            variants={featureCardStagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.15 }}
+          >
+            {SOLUTION_ITEMS.map((item) => (
+              <SolutionListItem key={item.id} title={item.title} description={item.description} />
+            ))}
+          </motion.div>
+        </div>
       </div>
     </motion.section>
   );
