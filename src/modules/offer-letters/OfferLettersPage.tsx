@@ -1,13 +1,16 @@
 import {
   ArrowLeft,
   CalendarIcon,
+  Check,
+  ChevronDown,
   Download,
   Eye,
   Loader2,
   RefreshCw,
   Trash2,
+  X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -101,6 +104,16 @@ type DocumentsTabProps = {
   onGenerateHandled: () => void;
 };
 
+const OFFER_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "VIEWED",
+  "ACCEPTED",
+  "REJECTED",
+  "EXPIRED",
+  "CANCELLED",
+];
+
 export function DocumentsTab({
   triggerGenerate,
   onGenerateHandled,
@@ -124,13 +137,46 @@ export function DocumentsTab({
     "variables",
   );
 
+  // Filter and search state
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState<Date | undefined>();
+  const [filterEndDate, setFilterEndDate] = useState<Date | undefined>();
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  // Debounce search with 500ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setPage(1); // Reset to page 1 when search changes
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset to page 1 when any filter changes
+  const handleFilterChange = useCallback(() => {
+    setPage(1);
+  }, []);
+
+  const queryParams = useMemo(
+    () => ({
+      page,
+      limit: 25,
+      search: debouncedSearch,
+      filters: {
+        ...(filterStatus ? { status: filterStatus } : {}),
+        ...(filterStartDate ? { startDate: filterStartDate.toISOString() } : {}),
+        ...(filterEndDate ? { endDate: filterEndDate.toISOString() } : {}),
+      },
+    }),
+    [page, debouncedSearch, filterStatus, filterStartDate, filterEndDate],
+  );
+
   const listQuery = useResourceQuery<OfferLetter>(
     "offer-letters",
     endpoints.offerLetters,
-    {
-      page,
-      limit: 25,
-    },
+    queryParams,
   );
   const offerLetters = listQuery.data?.items ?? [];
   const totalPages = listQuery.data?.meta.totalPages ?? 1;
@@ -435,17 +481,145 @@ export function DocumentsTab({
         title="Documents"
         description="Click a row to view details, download PDFs, update status, or delete documents."
       >
-        <DataTable
-          data={offerLetters}
-          columns={columns as ColumnDef<Record<string, unknown>>[]}
-          isLoading={listQuery.isLoading}
-          emptyTitle="No documents yet"
-          emptyDescription="Generated documents will appear here."
-          page={page}
-          totalPages={totalPages}
-          total={listQuery.data?.meta.total ?? offerLetters.length}
-          onPageChange={setPage}
-        />
+        <div className="space-y-4">
+          {/* Search and Filters */}
+          <div className="space-y-3">
+            <Input
+              placeholder="Search by recipient name, email, or template name..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="max-w-sm"
+            />
+
+            <div className="flex flex-wrap gap-3 items-center">
+              <Popover open={statusDropdownOpen} onOpenChange={setStatusDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-10 justify-between w-48">
+                    <span>
+                      {filterStatus ? filterStatus : "All Statuses"}
+                    </span>
+                    <ChevronDown className="size-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-0">
+                  <div className="max-h-64 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setFilterStatus("");
+                        handleFilterChange();
+                        setStatusDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${
+                        !filterStatus ? "bg-accent" : ""
+                      }`}
+                    >
+                      {!filterStatus && <Check className="size-4" />}
+                      <span className={!filterStatus ? "font-medium" : ""}>
+                        All Statuses
+                      </span>
+                    </button>
+                    {OFFER_STATUSES.map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setFilterStatus(status);
+                          handleFilterChange();
+                          setStatusDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${
+                          filterStatus === status ? "bg-accent" : ""
+                        }`}
+                      >
+                        {filterStatus === status && <Check className="size-4" />}
+                        <span
+                          className={filterStatus === status ? "font-medium" : ""}
+                        >
+                          {status}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-10">
+                    {filterStartDate
+                      ? format(filterStartDate, "MMM d, yyyy")
+                      : "Start Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filterStartDate}
+                    onSelect={(date) => {
+                      setFilterStartDate(date);
+                      handleFilterChange();
+                    }}
+                    disabled={(date) =>
+                      filterEndDate ? date > filterEndDate : false
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-10">
+                    {filterEndDate ? format(filterEndDate, "MMM d, yyyy") : "End Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filterEndDate}
+                    onSelect={(date) => {
+                      setFilterEndDate(date);
+                      handleFilterChange();
+                    }}
+                    disabled={(date) =>
+                      filterStartDate ? date < filterStartDate : false
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {(searchInput ||
+                filterStatus ||
+                filterStartDate ||
+                filterEndDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchInput("");
+                    setFilterStatus("");
+                    setFilterStartDate(undefined);
+                    setFilterEndDate(undefined);
+                    setPage(1);
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-4" /> Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <DataTable
+            data={offerLetters}
+            columns={columns as ColumnDef<Record<string, unknown>>[]}
+            isLoading={listQuery.isLoading}
+            emptyTitle="No documents yet"
+            emptyDescription="Generated documents will appear here."
+            page={page}
+            totalPages={totalPages}
+            total={listQuery.data?.meta.total ?? offerLetters.length}
+            onPageChange={setPage}
+          />
+        </div>
       </SectionCard>
 
       <Dialog

@@ -104,6 +104,8 @@ export function TemplatesTab({ triggerCreate, onCreateHandled }: TemplatesTabPro
   const [activeTab, setActiveTab] = useState<'html' | 'css' | 'formulas'>('html');
   const [newFormulaName, setNewFormulaName] = useState('');
   const [addingFormula, setAddingFormula] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const detectedVars = extractTemplateVariables(form.htmlContent ?? '');
   const validation = validateTemplateContent(form.htmlContent ?? '', form.cssContent ?? '');
@@ -113,6 +115,14 @@ export function TemplatesTab({ triggerCreate, onCreateHandled }: TemplatesTabPro
   }, [form.htmlContent, form.cssContent, form.formulas, sampleValues]);
 
   useEffect(() => { refreshPreview(); }, [refreshPreview]);
+
+  // Debounce search with 500ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     if (!triggerCreate) return;
@@ -130,25 +140,40 @@ export function TemplatesTab({ triggerCreate, onCreateHandled }: TemplatesTabPro
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Template>) => resourceApi.create<Partial<Template>, Template>(endpoints.templates, data),
-    onSuccess: () => { toast.success('Template created'); close(); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
+    onSuccess: () => {
+      toast.success('Template created');
+      close();
+      void queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
     onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Template>) => resourceApi.update<Partial<Template>, Template>(endpoints.templates, editing!.id, data),
-    onSuccess: () => { toast.success('Template updated'); close(); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
+    onSuccess: () => {
+      toast.success('Template updated');
+      close();
+      void queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
     onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const defaultMutation = useMutation({
     mutationFn: (id: string) => httpClient.patch<ApiResponse<Template>>(endpoints.templateSetDefault(id)),
-    onSuccess: () => { toast.success('Default template updated'); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
+    onSuccess: () => {
+      toast.success('Default template updated');
+      void queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
     onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => httpClient.delete(`${endpoints.templates}/${id}`),
-    onSuccess: () => { toast.success('Template deleted'); setDeleteTarget(null); void queryClient.invalidateQueries({ queryKey: ['templates'] }); },
+    onSuccess: () => {
+      toast.success('Template deleted');
+      setDeleteTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
     onError: (e: Error) => toast.error(getErrorMessage(e)),
   });
 
@@ -322,7 +347,11 @@ export function TemplatesTab({ triggerCreate, onCreateHandled }: TemplatesTabPro
     },
   ];
 
-  const listQuery = useResourceQuery<Template>('templates', endpoints.templates, { page: 1, limit: 50 });
+  const listQuery = useResourceQuery<Template>('templates', endpoints.templates, {
+    page: 1,
+    limit: 50,
+    search: debouncedSearch
+  });
   const templates = (listQuery.data?.items ?? []).map(ensureTemplateVariables);
 
   return (
@@ -331,17 +360,37 @@ export function TemplatesTab({ triggerCreate, onCreateHandled }: TemplatesTabPro
         title="Templates"
         description={`${listQuery.data?.meta?.total ?? 0} templates saved. Build HTML templates with live preview and formula variables.`}
       >
-        <DataTable
-          data={templates}
-          columns={templateColumns as ColumnDef<Record<string, unknown>>[]}
-          isLoading={listQuery.isLoading}
-          emptyTitle="No templates yet"
-          emptyDescription="Create your first template to start generating documents."
-          page={1}
-          totalPages={1}
-          total={templates.length}
-          onPageChange={() => {}}
-        />
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Search templates by name or key..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="max-w-sm"
+            />
+            {searchInput && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchInput('')}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" /> Clear
+              </Button>
+            )}
+          </div>
+          <DataTable
+            data={templates}
+            columns={templateColumns as ColumnDef<Record<string, unknown>>[]}
+            isLoading={listQuery.isLoading}
+            emptyTitle="No templates yet"
+            emptyDescription="Create your first template to start generating documents."
+            page={1}
+            totalPages={1}
+            total={templates.length}
+            onPageChange={() => {}}
+          />
+        </div>
       </SectionCard>
 
       <Dialog open={dialogOpen} onOpenChange={(o) => !busy && (o ? setDialogOpen(true) : close())}>
