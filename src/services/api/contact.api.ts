@@ -16,7 +16,8 @@ export type ContactResponse = {
   };
 };
 
-const CONTACT_API_URL = 'https://task-twerp-pandemic.ngrok-free.dev/api/v1/contact';
+// const apiUrl = NEXT_PUBLIC_API_URL
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 /**
  * Public marketing endpoint on a separate backend from the authenticated
@@ -26,7 +27,7 @@ const CONTACT_API_URL = 'https://task-twerp-pandemic.ngrok-free.dev/api/v1/conta
  */
 export const contactApi = {
   async submit(payload: ContactPayload): Promise<ContactResponse> {
-    const response = await axios.post<ContactResponse>(CONTACT_API_URL, payload, {
+    const response = await axios.post<ContactResponse>(apiUrl, payload, {
       headers: {
         'Content-Type': 'application/json'
       }
