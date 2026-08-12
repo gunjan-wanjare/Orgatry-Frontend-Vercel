@@ -16,7 +16,6 @@ export type ContactResponse = {
   };
 };
 
-// const apiUrl = NEXT_PUBLIC_API_URL
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 /**
@@ -27,6 +26,10 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL;
  */
 export const contactApi = {
   async submit(payload: ContactPayload): Promise<ContactResponse> {
+    if (!apiUrl) {
+      throw new Error('NEXT_PUBLIC_API_URL is required');
+    }
+
     const response = await axios.post<ContactResponse>(apiUrl, payload, {
       headers: {
         'Content-Type': 'application/json'
