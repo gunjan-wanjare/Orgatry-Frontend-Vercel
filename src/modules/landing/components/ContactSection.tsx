@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { Mail, MapPin, Phone } from 'lucide-react';
+import { Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { type FormEvent, useId } from 'react';
+import { type ChangeEvent, type FormEvent, useId, useState } from 'react';
+import { toast } from 'sonner';
 import { fadeInUp, staggerContainer } from '@/modules/landing/animations/landingMotion';
 import {
   landingContact,
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { contactApi, getContactErrorMessage } from '@/services/api/contact.api';
 
 /**
  * Contact — Figma `479:2659` (How can we help you today?).
@@ -93,6 +95,50 @@ function ContactInfoList() {
   );
 }
 
+type ContactFormValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  subject: string;
+  description: string;
+};
+
+const INITIAL_CONTACT_VALUES: ContactFormValues = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  subject: '',
+  description: ''
+};
+
+type ContactFormErrors = Partial<Record<keyof ContactFormValues, string>>;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateContactForm(values: ContactFormValues): ContactFormErrors {
+  const errors: ContactFormErrors = {};
+
+  if (!values.firstName.trim()) {
+    errors.firstName = 'First name is required.';
+  }
+  if (!values.lastName.trim()) {
+    errors.lastName = 'Last name is required.';
+  }
+  if (!values.email.trim()) {
+    errors.email = 'Email is required.';
+  } else if (!EMAIL_PATTERN.test(values.email.trim())) {
+    errors.email = 'Enter a valid email address.';
+  }
+  if (!values.subject.trim()) {
+    errors.subject = 'Subject is required.';
+  }
+  if (!values.description.trim()) {
+    errors.description = 'Description is required.';
+  }
+
+  return errors;
+}
+
 function ContactForm() {
   const formId = useId();
   const firstNameId = `${formId}-first-name`;
@@ -101,8 +147,50 @@ function ContactForm() {
   const subjectId = `${formId}-subject`;
   const descriptionId = `${formId}-description`;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const [values, setValues] = useState<ContactFormValues>(INITIAL_CONTACT_VALUES);
+  const [errors, setErrors] = useState<ContactFormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function handleFieldChange(field: keyof ContactFormValues) {
+    return (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { value } = event.target;
+      setValues((prev) => ({ ...prev, [field]: value }));
+      setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
+    };
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    const validationErrors = validateContactForm(values);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setErrors({});
+    setIsSubmitting(true);
+
+    try {
+      await contactApi.submit({
+        fullName: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
+        email: values.email.trim(),
+        subject: values.subject.trim(),
+        description: values.description.trim(),
+        brand: 'orgatry'
+      });
+
+      toast.success('Your message has been submitted successfully.');
+      setValues(INITIAL_CONTACT_VALUES);
+    } catch (error) {
+      toast.error(getContactErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -111,6 +199,7 @@ function ContactForm() {
       className="flex w-full flex-col"
       style={{ gap: fluid(16, 20) }}
       aria-labelledby={`${formId}-title`}
+      noValidate
     >
       <span id={`${formId}-title`} className="sr-only">
         Contact form
@@ -134,7 +223,16 @@ function ContactForm() {
             placeholder={landingContact.fields.firstName.placeholder}
             className={fieldClassName}
             style={{ fontSize: FIELD_TEXT_SIZE }}
+            value={values.firstName}
+            onChange={handleFieldChange('firstName')}
+            aria-invalid={Boolean(errors.firstName)}
+            aria-describedby={errors.firstName ? `${firstNameId}-error` : undefined}
           />
+          {errors.firstName ? (
+            <span id={`${firstNameId}-error`} className="text-xs text-rose-600">
+              {errors.firstName}
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <Label
@@ -153,7 +251,16 @@ function ContactForm() {
             placeholder={landingContact.fields.lastName.placeholder}
             className={fieldClassName}
             style={{ fontSize: FIELD_TEXT_SIZE }}
+            value={values.lastName}
+            onChange={handleFieldChange('lastName')}
+            aria-invalid={Boolean(errors.lastName)}
+            aria-describedby={errors.lastName ? `${lastNameId}-error` : undefined}
           />
+          {errors.lastName ? (
+            <span id={`${lastNameId}-error`} className="text-xs text-rose-600">
+              {errors.lastName}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -169,11 +276,21 @@ function ContactForm() {
           id={emailId}
           name="email"
           type="email"
+          required
           autoComplete="email"
           placeholder={landingContact.fields.email.placeholder}
           className={fieldClassName}
           style={{ fontSize: FIELD_TEXT_SIZE }}
+          value={values.email}
+          onChange={handleFieldChange('email')}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? `${emailId}-error` : undefined}
         />
+        {errors.email ? (
+          <span id={`${emailId}-error`} className="text-xs text-rose-600">
+            {errors.email}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -188,10 +305,20 @@ function ContactForm() {
           id={subjectId}
           name="subject"
           type="text"
+          required
           placeholder={landingContact.fields.subject.placeholder}
           className={fieldClassName}
           style={{ fontSize: FIELD_TEXT_SIZE }}
+          value={values.subject}
+          onChange={handleFieldChange('subject')}
+          aria-invalid={Boolean(errors.subject)}
+          aria-describedby={errors.subject ? `${subjectId}-error` : undefined}
         />
+        {errors.subject ? (
+          <span id={`${subjectId}-error`} className="text-xs text-rose-600">
+            {errors.subject}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -205,14 +332,31 @@ function ContactForm() {
         <Textarea
           id={descriptionId}
           name="description"
+          required
           placeholder={landingContact.fields.description.placeholder}
           className={cn(fieldClassName, 'min-h-[130px] resize-none py-4')}
           style={{ fontSize: FIELD_TEXT_SIZE }}
+          value={values.description}
+          onChange={handleFieldChange('description')}
+          aria-invalid={Boolean(errors.description)}
+          aria-describedby={errors.description ? `${descriptionId}-error` : undefined}
         />
+        {errors.description ? (
+          <span id={`${descriptionId}-error`} className="text-xs text-rose-600">
+            {errors.description}
+          </span>
+        ) : null}
       </div>
 
-      <LandingButton type="submit" variant="primary" style={ctaButtonStyle} className={CTA_BUTTON_CLASSNAME}>
-        {landingContact.submitLabel}
+      <LandingButton
+        type="submit"
+        variant="primary"
+        disabled={isSubmitting}
+        style={ctaButtonStyle}
+        className={CTA_BUTTON_CLASSNAME}
+      >
+        {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+        {isSubmitting ? 'Submitting...' : landingContact.submitLabel}
       </LandingButton>
     </form>
   );
